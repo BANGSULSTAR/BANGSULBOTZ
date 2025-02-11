@@ -9,6 +9,7 @@ global.botname = 'BangsulBotz'
 global.listv = ['•','●','■','✿','▲','➩','➢','➣','➤','✦','✧','△','❀','○','□','♤','♡','◇','♧','々','〆']
 global.tempatDB = 'database.json'
 global.pairing_code = true
+global.number_bot = '6281266021317' // Kalo pake panel bisa masukin nomer di sini, jika belum ambil session. Format : '628xx'
 
 global.fake = {
 	anonim: 'https://telegra.ph/file/95670d63378f7f4210f03.png',
@@ -38,6 +39,7 @@ global.uang = {
 	premium: 1000000,
 	vip: 10000000
 }
+global.blockedChats = new Set();
 
 global.mess = {
 	owner: '👑 *Hanya Yang Mulia sang Penguasa yang berhak menggunakan fitur ini!*',
