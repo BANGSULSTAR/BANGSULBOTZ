@@ -13,7 +13,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // Misalkan global.owner sudah didefinisikan sebelumnya
-const owner = global.owner;
+//const owner = global.owner;
 
 function start() {
     console.log(chalk.green('Bot sedang dimulai...')); // Menggunakan warna hijau
