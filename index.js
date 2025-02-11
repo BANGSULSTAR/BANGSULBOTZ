@@ -1,17 +1,19 @@
+//const path = require('path');
+//const axios = require('axios');
+//const FileType = require('file-type');
+//const { exec, spawn, execSync } = require('child_process');
+//const { default: WAConnection, useMultiFileAuthState, Browsers, DisconnectReason, makeInMemoryStore, makeCacheableSignalKeyStore, fetchLatestBaileysVersion, proto, getAggregateVotesInPollMessage } = require('@whiskeysockets/baileys');
 
 require('./settings');
 const fs = require('fs');
 const pino = require('pino');
-const path = require('path');
-const axios = require('axios');
 const chalk = require('chalk');
 const readline = require('readline');
-const FileType = require('file-type');
 const { Boom } = require('@hapi/boom');
 const NodeCache = require('node-cache');
-const { exec, spawn, execSync } = require('child_process');
+const { exec} = require('child_process');
 const { parsePhoneNumber } = require('awesome-phonenumber');
-const { default: WAConnection, useMultiFileAuthState, Browsers, DisconnectReason, makeInMemoryStore, makeCacheableSignalKeyStore, fetchLatestBaileysVersion, proto, getAggregateVotesInPollMessage } = require('@whiskeysockets/baileys');
+const { default: WAConnection, useMultiFileAuthState, Browsers, DisconnectReason, makeInMemoryStore, makeCacheableSignalKeyStore, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 
 const pairingCode = process.argv.includes('--qr') ? false : process.argv.includes('--pairing-code') || global.pairing_code;
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
@@ -46,7 +48,7 @@ const msgRetryCounterCache = new NodeCache();
 })();
 
 const { GroupUpdate, GroupParticipantsUpdate, MessagesUpsert, Solving } = require('./src/message');
-const { isUrl, generateMessageTag, getBuffer, getSizeMedia, fetchJson, sleep } = require('./lib/function');
+//const { isUrl, generateMessageTag, getBuffer, getSizeMedia, fetchJson, sleep } = require('./lib/function');
 
 /*
 	* Create By Naze
@@ -56,7 +58,8 @@ const { isUrl, generateMessageTag, getBuffer, getSizeMedia, fetchJson, sleep } =
 
 async function startNazeBot() {
 	const { state, saveCreds } = await useMultiFileAuthState('nazedev');
-	const { version, isLatest } = await fetchLatestBaileysVersion();
+	const { isLatest } = await fetchLatestBaileysVersion();
+	//const { version, isLatest } = await fetchLatestBaileysVersion();
 	const level = pino({ level: 'silent' })
 	
 	const getMessage = async (key) => {
@@ -65,7 +68,7 @@ async function startNazeBot() {
 			return msg?.message || ''
 		}
 		return {
-			conversation: 'Halo Saya Naze Bot'
+			conversation: 'Halo Saya BangsulBot'
 		}
 	}
 	
@@ -99,7 +102,7 @@ async function startNazeBot() {
 	if (pairingCode && !naze.authState.creds.registered) {
 		let phoneNumber;
 		async function getPhoneNumber() {
-			phoneNumber = await question('Please type your WhatsApp number : ');
+			phoneNumber = global.number_bot ? global.number_bot : await question('Please type your WhatsApp number : ');
 			phoneNumber = phoneNumber.replace(/[^0-9]/g, '')
 			
 			if (!parsePhoneNumber(phoneNumber).valid && phoneNumber.length < 6) {
