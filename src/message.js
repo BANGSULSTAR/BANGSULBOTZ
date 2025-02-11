@@ -3,20 +3,19 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const chalk = require('chalk');
-const FileType = require('file-type');
-const PhoneNumber = require('awesome-phonenumber');
-
 const prem = require('./premium');
-const { imageToWebp, videoToWebp, writeExif } = require('../lib/exif');
+const FileType = require('file-type');
+const { writeExif } = require('../lib/exif');
+const PhoneNumber = require('awesome-phonenumber');
+const { getBuffer, getSizeMedia } = require('../lib/function');
 const premium = JSON.parse(fs.readFileSync('./database/premium.json'));
-const { isUrl, getGroupAdmins, generateMessageTag, getBuffer, getSizeMedia, fetchJson, sleep, getTypeUrlMedia } = require('../lib/function');
-const { jidNormalizedUser, proto, getBinaryNodeChildren, getBinaryNodeChild, generateWAMessageContent, generateForwardMessageContent, prepareWAMessageMedia, delay, areJidsSameUser, extractMessageContent, generateMessageID, downloadContentFromMessage, generateWAMessageFromContent, jidDecode, generateWAMessage, toBuffer, getContentType, getDevice } = require('@whiskeysockets/baileys');
+const { jidNormalizedUser, proto, getBinaryNodeChild, generateWAMessageContent, areJidsSameUser, extractMessageContent, downloadContentFromMessage, generateWAMessageFromContent, jidDecode, generateWAMessage, getContentType, getDevice } = require('@whiskeysockets/baileys');
+const blockUserPath = path.join(__dirname, '../database/block_user.json');
 
-/*
-	* Create By Naze
-	* Follow https://github.com/nazedev
-	* Whatsapp : wa.me/6282113821188
-*/
+//const { imageToWebp, videoToWebp, writeExif } = require('../lib/exif');
+//const { isUrl, getGroupAdmins, generateMessageTag, getBuffer, getSizeMedia, fetchJson, sleep, getTypeUrlMedia } = require('../lib/function');
+//const { jidNormalizedUser, proto, getBinaryNodeChildren, getBinaryNodeChild, generateWAMessageContent, generateForwardMessageContent, prepareWAMessageMedia, delay, areJidsSameUser, extractMessageContent, generateMessageID, downloadContentFromMessage, generateWAMessageFromContent, jidDecode, generateWAMessage, toBuffer, getContentType, getDevice } = require('@whiskeysockets/baileys');
+
 
 async function GroupUpdate(naze, update, store) {
 	try {
@@ -242,45 +241,102 @@ async function LoadDataBase(naze, m) {
 	}
 }
 
-async function MessagesUpsert(naze, message, store) {
-	try {
-		let botNumber = await naze.decodeJid(naze.user.id);
-		const msg = message.messages[0];
-		if (store.groupMetadata && Object.keys(store.groupMetadata).length === 0) store.groupMetadata = await naze.groupFetchAllParticipating()
-		const type = msg.message ? (getContentType(msg.message) || Object.keys(msg.message)[0]) : '';
-		if (!naze.public && !msg.key.fromMe && message.type === 'notify') return
-		if (!msg.message) return
-		const m = await Serialize(naze, msg, store)
-		require('../naze')(naze, m, message, store);
-		if (type === 'interactiveResponseMessage' && m.quoted && m.quoted.fromMe) {
-			let apb = await generateWAMessage(m.chat, { text: JSON.parse(m.msg.nativeFlowResponseMessage.paramsJson).id, mentions: m.mentionedJid }, {
-				userJid: naze.user.id,
-				quoted: m.quoted
-			});
-			apb.key = msg.key
-			apb.key.fromMe = areJidsSameUser(m.sender, naze.user.id);
-			if (m.isGroup) apb.participant = m.sender;
-			let pbr = {
-				...msg,
-				messages: [proto.WebMessageInfo.fromObject(apb)],
-				type: 'append'
-			}
-			naze.ev.emit('messages.upsert', pbr);
-		}
-		if (global.db.set && global.db.set[botNumber] && global.db.set[botNumber].readsw) {
-			if (msg.key.remoteJid === 'status@broadcast') {
-				await naze.readMessages([msg.key]);
-				if (/protocolMessage/i.test(type)) naze.sendFromOwner(global.owner, 'Status dari @' + msg.key.participant.split('@')[0] + ' Telah dihapus', msg, { mentions: [msg.key.participant] });
-				if (/(audioMessage|imageMessage|videoMessage|extendedTextMessage)/i.test(type)) {
-					let keke = (type == 'extendedTextMessage') ? `Story Teks Berisi : ${msg.message.extendedTextMessage.text ? msg.message.extendedTextMessage.text : ''}` : (type == 'imageMessage') ? `Story Gambar ${msg.message.imageMessage.caption ? 'dengan Caption : ' + msg.message.imageMessage.caption : ''}` : (type == 'videoMessage') ? `Story Video ${msg.message.videoMessage.caption ? 'dengan Caption : ' + msg.message.videoMessage.caption : ''}` : (type == 'audioMessage') ? 'Story Audio' : '\nTidak diketahui cek saja langsung'
-					await naze.sendFromOwner(global.owner, `Melihat story dari @${msg.key.participant.split('@')[0]}\n${keke}`, msg, { mentions: [msg.key.participant] });
-				}
-			}
-		}
-	} catch (e) {
-		throw e;
-	}
+
+
+
+// Fungsi untuk membaca daftar user yang diblokir dari database
+function loadBlockedUsers() {
+    if (!fs.existsSync(blockUserPath)) {
+        fs.writeFileSync(blockUserPath, JSON.stringify([])); // Buat file jika belum ada
+        return new Set();
+    }
+    return new Set(JSON.parse(fs.readFileSync(blockUserPath, 'utf8')));
 }
+
+// Fungsi untuk menyimpan daftar user yang diblokir ke database
+function saveBlockedUsers(blockedUsers) {
+    try {
+        console.log(`💾 Menyimpan data ke database...`);
+        fs.writeFileSync(blockUserPath, JSON.stringify([...blockedUsers], null, 2));
+        
+        console.log(`✅ Data berhasil disimpan ke ${blockUserPath}`);
+        
+        // Cek apakah file benar-benar tersimpan
+        let checkFile = fs.readFileSync(blockUserPath, 'utf8');
+        console.log(`🔍 Isi file setelah disimpan:`, checkFile);
+    } catch (error) {
+        console.error(`❌ Gagal menyimpan data:`, error);
+    }
+}
+
+
+// Muat daftar user yang diblokir ke dalam memori saat startup
+let blockedUsers = loadBlockedUsers();
+
+async function MessagesUpsert(naze, message, store) {
+    try {
+        let botNumber = await naze.decodeJid(naze.user.id);
+        const msg = message.messages[0];
+
+        if (msg.message && msg.message.protocolMessage) {
+            return;
+        }
+
+        if (store.groupMetadata && Object.keys(store.groupMetadata).length === 0) {
+            store.groupMetadata = await naze.groupFetchAllParticipating();
+        }
+
+        const type = msg.message ? (getContentType(msg.message) || Object.keys(msg.message)[0]) : '';
+        
+        if (!naze.public && !msg.key.fromMe && message.type === 'notify') return;
+        if (!msg.message) return;
+
+        const m = await Serialize(naze, msg, store);
+        let senderNumber = m.sender.replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+        
+        // Selalu baca ulang daftar block agar up-to-date
+        blockedUsers = loadBlockedUsers(); // Pastikan daftar terupdate
+        if (blockedUsers.has(senderNumber)) return;
+        
+        require('../naze')(naze, m, message, store);
+    } catch (e) {
+        throw e;
+    }
+}
+
+// Fungsi untuk menambahkan nomor ke daftar blockchat
+async function blockChat(naze, number) {
+    let jid = number.replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+
+    console.log(`📌 Menerima permintaan untuk memblokir: ${jid}`);
+
+    let updatedBlockedUsers = loadBlockedUsers(); // Selalu baca ulang daftar terbaru
+
+    console.log(`📂 Daftar sebelum ditambah:`, [...updatedBlockedUsers]);
+
+    updatedBlockedUsers.add(jid); // Tambahkan nomor ke daftar blokir
+
+    console.log(`✅ Daftar setelah ditambah:`, [...updatedBlockedUsers]);
+
+    saveBlockedUsers(updatedBlockedUsers); // Simpan ulang daftar terbaru
+
+    // Cek apakah benar-benar tersimpan
+    let checkSaved = loadBlockedUsers();
+    console.log(`🔍 Data setelah disimpan:`, [...checkSaved]);
+
+    return `Nomor ${number} berhasil diblokir dari chat.`;
+}
+
+
+// Fungsi untuk menampilkan daftar blockchat
+async function listBlockChat() {
+    let latestBlockedUsers = loadBlockedUsers();
+    return latestBlockedUsers.size > 0 
+        ? `Daftar blockchat:\n${[...latestBlockedUsers].join('\n')}` 
+        : 'Tidak ada nomor yang diblokir.';
+}
+
+
 
 async function Solving(naze, store) {
 	naze.public = true
@@ -417,6 +473,17 @@ async function Solving(naze, store) {
 		return buff;
 	}
 	
+	naze.sendSticker = async (jid, path, options = {}) => {
+		const buff = Buffer.isBuffer(path) ? path : /^data:.*?\/.*?;base64,/i.test(path) ? Buffer.from(path.split`,`[1], 'base64') : /^https?:\/\//.test(path) ? await (await getBuffer(path)) : fs.existsSync(path) ? fs.readFileSync(path) : Buffer.alloc(0);
+		const result = await writeExif(buff, options);
+		
+		// Pastikan mengirim stiker, bukan pesan teks
+		await naze.sendMessage(jid, { sticker: { url: result }, ...options });
+	
+		return buff;
+	}
+	
+
 	naze.downloadAndSaveMediaMessage = async (message, filename, attachExtension = true) => {
 		const quoted = message.msg || message;
 		const mime = quoted.mimetype || '';
@@ -585,6 +652,7 @@ async function Solving(naze, store) {
 async function Serialize(naze, m, store) {
 	const botNumber = naze.decodeJid(naze.user.id)
 	if (!m) return m
+	if (!store.messages[m.key.remoteJid]?.array?.some(a => a.key.id === m.key.id)) return m
 	if (m.key) {
 		m.id = m.key.id
 		m.chat = m.key.remoteJid
@@ -733,7 +801,7 @@ async function Serialize(naze, m, store) {
 	return m
 }
 
-module.exports = { GroupUpdate, GroupParticipantsUpdate, LoadDataBase, MessagesUpsert, Solving }
+module.exports = { GroupUpdate, GroupParticipantsUpdate, LoadDataBase, MessagesUpsert,blockChat, listBlockChat, Solving }
 
 let file = require.resolve(__filename)
 fs.watchFile(file, () => {
