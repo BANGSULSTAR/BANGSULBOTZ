@@ -1,7 +1,6 @@
-process.on('uncaughtException', console.error)
-process.on('unhandledRejection', console.error)
 
 require('./settings');
+const os = require('os');
 const fs = require('fs');
 const path = require('path');
 const util = require('util');
@@ -33,14 +32,14 @@ const ImageNano = JSON.parse(fs.readFileSync('./data/NanoMedia/database/xeonimag
 const NanoVoiceNote = JSON.parse(fs.readFileSync('./data/NanoMedia/database/xeonvn.json'));
 const NanoSticker = JSON.parse(fs.readFileSync('./data/NanoMedia/database/xeonsticker.json'));
 const { tiktokDl, quotedLyo, simi, mediafireDl, wallpaper, ringtone, styletext, } = require('./lib/screaper');
-const {generateWAMessageFromContent, proto, generateWAMessageContent, getContentType} = require('@whiskeysockets/baileys');
+const {downloadContentFromMessage, generateWAMessageFromContent, proto, generateWAMessageContent, getContentType} = require('@whiskeysockets/baileys');
 const {getRandom, getBuffer, fetchJson, runtime, clockString, sleep, isUrl, formatDate,  generateProfilePicture,  pickRandom } = require('./lib/function');
 //const folderPath = './nazedev';
 //const mainSessionFile = 'creds.json';
 const autoAIPath = './database/autoai.json';
 const blockUserPath = './database/block_user.json';
 const countryCodes = require('./database/countryCodes');
-//const ffmpegPath = require('ffmpeg-static');  ini buat idx dev
+//const ffmpegPath = require('ffmpeg-static');  //ini buat idx dev
 
 // Database Game
 let menfes = db.game.menfes = []
@@ -86,7 +85,6 @@ try {
 	const more = String.fromCharCode(8206)
 	const readmore = more.repeat(999)
 	//ffmpeg.setFfmpegPath(ffmpegPath);  ini buat idx dev
-	//1
 	const isVip = db.users[m.sender] ? db.users[m.sender].vip : false
 	const isPremium = isCreator || prem.checkPremiumUser(m.sender, premium) || false
 	
@@ -120,13 +118,15 @@ try {
 	}
 	// Auto Read
 	if (m.message && m.key.remoteJid !== 'status@broadcast') {
-		console.log( `----------------------------------------------------`,
-		`\n⏳ ${chalk.whiteBright(`[ TIME ] :`)} ${chalk.cyanBright(new Date().toLocaleString())}`, 
-		`\n👤 ${chalk.yellowBright('[ DARI ] :')} ${chalk.magenta(m.pushName || (isCreator ? 'Bot' : 'Anonim'))} (${chalk.blueBright(m.sender)})`,
-		`\n💬 ${chalk.redBright('[ CHAT ] :')} ${chalk.cyan(m.isGroup ? m.metadata.subject : 'Private Chat')}`,
-		`\n📩 ${chalk.whiteBright(`[ PESAN ]:`)}\n${chalk.greenBright(budy || m.type)}`);
+    console.log(
+        `--------------------------------------------------------------------`,
+        `\n⏳ ${chalk.whiteBright(`[ TIME ] :`)} ${chalk.cyanBright(new Date().toLocaleString())}`, 
+        `\n👤 ${chalk.yellowBright('[ DARI ] :')} ${chalk.magenta(m.pushName || (isCreator ? 'BangsulBotz' : 'Anonim'))} (${chalk.blueBright(m.sender)})`,
+        `\n💬 ${chalk.redBright('[ CHAT ] :')} ${chalk.cyan(m.isGroup ? `${m.metadata.subject} ${chalk.gray(`(${m.chat})`)}` : 'Private Chat')}`,
+        `\n📩 ${chalk.whiteBright(`[ PESAN ]:`)}\n${chalk.greenBright(budy || m.type)}` );
 		if (db.set[botNumber].autoread && naze.public) naze.readMessages([m.key]);
 	}
+
 	
 	// Group Settings
 	if (m.isGroup) {
@@ -135,7 +135,9 @@ try {
 		if (db.groups[m.chat].mute && !isCreator) {
 			return;
 		}
-		
+		if (db.groups[m.chat].onlyadmin && !isCreator && !m.isAdmin) {
+			return; // Jika mode onlyadmin aktif, hanya admin yang bisa menggunakan bot
+		}
 		// Anti Delete
 		if (m.type == 'protocolMessage' && db.groups[m.chat].antidelete && !isCreator && m.isBotAdmin && !m.isAdmin) {
 			const mess = chatUpdate.messages[0].message.protocolMessage;
@@ -234,7 +236,11 @@ try {
 				await naze.groupParticipantsUpdate(m.chat, [m.sender], 'remove');
 			}
 		}
+		
+
+		
 	}
+
 	// Filter Bot
 	if (m.isBot) return
 	
@@ -253,7 +259,6 @@ try {
 	prem.expiredCheck(naze, premium);
 	
 	// Game
-
 	const games = { tebaklirik, tekateki, tebaklagu, tebakkata, kuismath, susunkata, tebakkimia, caklontong, tebaknegara, tebakgambar, tebakbendera };
 for (let gameName in games) {
     let game = games[gameName];
@@ -373,63 +378,7 @@ if (m.chat in family100) {
 		user.afkReason = ''
 	}
 	
-	function createInteractiveMessage(nano_sad) {
-		return {
-			viewOnceMessage: {
-				message: {
-					messageContextInfo: {
-						deviceListMetadata: {},
-						deviceListMetadataVersion: 2
-					},
-					interactiveMessage: proto.Message.InteractiveMessage.create({
-						body: proto.Message.InteractiveMessage.Body.create({
-							text: nano_sad
-						}),
-						footer: proto.Message.InteractiveMessage.Footer.create({
-							text: botname
-						}),
-						nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
-							buttons: [
-								{
-									name: "single_select",
-									buttonParamsJson: `{
-										"title": "📜 LIST MENU BOT 📜",
-										"sections": [{
-											"title": "✨ ${botname} Features ✨",
-											"rows": [
-															{ header: "🔍 AI MENU", title: "🔍 Alat Pencarian", description: "Cari berbagai informasi", id: ".aimenu" },
-															{ header: "📚 ALL MENU", title: "🗂️ Semua Fitur", description: "Jelajahi semua fungsi bot", id: ".allmenu" },
-															{ header: "🤖 BOT MENU", title: "🤖 Fitur Bot", description: "Jelajahi alat dan fitur bot", id: ".botmenu" },
-															{ header: "⬇️ DOWNLOAD MENU", title: "⬇️ Alat Unduhan", description: "Unduh media dengan mudah", id: ".downloadmenu" },
-															{ header: "🎉 FUN MENU", title: "🎉 Fitur Hiburan", description: "Nikmati aktivitas yang menyenangkan", id: ".funmenu" },
-															{ header: "🎮 GAME MENU", title: "🎮 Fitur Game", description: "Mainkan game yang seru", id: ".gamemenu" },
-															{ header: "👥 GRUP MENU", title: "👥 Alat Grup", description: "Kelola dan nikmati fitur grup", id: ".groupmenu" },
-															{ header: "👑 OWNER MENU", title: "👑 Alat Pemilik", description: "Fitur eksklusif untuk pemilik", id: ".ownermenu" },
-															{ header: "💬 QUOTES MENU", title: "💬 Kutipan", description: "Dapatkan inspirasi dari kutipan", id: ".quotes" },
-															{ header: "🔍 SEARCH MENU", title: "🔍 Alat Pencarian", description: "Cari berbagai informasi", id: ".searchmenu" },
-															{ header: "🔧 TOOLS MENU", title: "🔧 Alat Lainnya", description: "Utilitas dan alat tambahan", id: ".toolsmenu" }
-													]
-
-										}]
-									}`
-								},
-								{
-									name: "quick_reply",
-									buttonParamsJson: `{"display_text":"Owner 👤","id":".owner"}`
-								}
-							]
-						})
-					})
-				}
-			}
-		};
-	}
 	
-	// Fungsi untuk mengirim pesan interaktif
-	async function sendInteractiveMessage(from, nano_sad) {
-		let msg = generateWAMessageFromContent(from, createInteractiveMessage(nano_sad), {});
-		await naze.relayMessage(msg.key.remoteJid, msg.message, { messageId: msg.key.id });
-	}
 // Tambahkan bagian ini di tempat di mana bot memproses setiap pesan yang masuk
 let incomingMessage = (m.text || '').toLowerCase(); // jika m.text undefined, gunakan string kosong
 
@@ -489,17 +438,36 @@ _Mari kita jaga suasana yang baik dan bersahabat._ ✨`;
     m.reply(warningMessage);
 }
 
-global.kataeror = ['eror', 'error','erorr','errorr','Eror', 'Error','Erorr','Errorr','TypeError'];
+global.kataeror = ['eror', 'error', 'erorr', 'errorr', 'Eror', 'Error', 'Erorr', 'Errorr', 'TypeError'];
 
-// Fungsi untuk mendeteksi kata kotor
 function deteksiKataeror(body) {
-	return global.kataeror.some(kata => new RegExp(`\\b${kata}\\b`, 'i').test(body));
-}
-if (deteksiKataeror(body)) {
-	m.reply("*AWOKAWOK EROR, KASIHAN LUU*");
+    return global.kataeror.some(kata => new RegExp(`\\b${kata}\\b`, 'i').test(body));
 }
 
-// Menangani respon tombol untuk lagu galau
+if (deteksiKataeror(body)) {
+    let respon = [
+        "AWOKAWOK ERROR? MENDING LU TIDUR DULU 🗿",
+        "KASIHAN BGT NIH, ERROR LU? SINI GUA PUKPUK DULU 🗿",
+        "YAELAHH ERROR LAGI, GWS DEH BUAT LU 🗿",
+        "LU ERROR GUA ERROR, KITA ERROR BERSAMA 🗿",
+        "NIH KASIH SOLUSI: CTRL + ALT + DEL, MASUK BIOS, TERUS TINGGALIN PC LU 🗿",
+        "SABAR BOS, JANGAN PANIK, JANGAN NGOPREK, JANGAN NGODING, LANGSUNG TIDUR 🗿",
+        "ERROR? KASIHAN LU, NIH GUA KASIH BATU 🗿🗿🗿",
+        "GUA MAH GAK ERROR, LU AJA YANG KENA AZAB KERJAAN NGGAK BERES 🗿",
+        "SINI GUA TOLONGIN... EH GAK JADI, MENDING LIAT MEME AJA 🗿",
+        "CARI SOLUSI DI GOOGLE? SALAH, MENDING PASRAH AJA 🗿",
+        "TENANG BOS, ERROR ITU REZEKI, SEMAKIN BANYAK ERROR, SEMAKIN DEKAT KE SARAF TEKANAN 🗿",
+        "BISA-BISANYA ERROR, KASIHAN BANGET HIDUP LU 🗿",
+        "KALO ERROR MENDING RENUNGIN HIDUP, JANGAN NGODING MULU 🗿",
+        "INI ERROR KAYAKNYA BUKAN DARI SISTEM, TAPI DARI HATI LU YANG KOSONG 🗿"
+    ];
+    
+    let randomRespon = respon[Math.floor(Math.random() * respon.length)];
+    m.reply(randomRespon);
+}
+
+
+// Menangani respon tombol untuk lagu galau (ini udah ga fungsi)
 if (m.message && m.message.buttonsResponseMessage && m.message.buttonsResponseMessage.selectedButtonId.startsWith('getgalau_')) {
     const fileName = m.message.buttonsResponseMessage.selectedButtonId.replace('getgalau_', '').trim();
     const dirPath = './data/assets/galau/';
@@ -516,56 +484,6 @@ if (m.message && m.message.buttonsResponseMessage && m.message.buttonsResponseMe
         m.reply(`File dengan nama *${fileName}* tidak ditemukan.`);
     }
 }
-async function getTelegramStickers(link) {
-    let response = await fetch(`https://api.telegram.org/bot8076926331:AAF250aEaHEgyHQ0URzV6dJRcAbMwsePCdc/getStickerSet?name=${link.split('addstickers/')[1]}`);
-    let data = await response.json();
-    if (data.ok) {
-        return data.result.stickers.map(sticker => ({
-            file_id: sticker.file_id,
-            //is_video: sticker.is_video || false // Tambahkan deteksi untuk stiker video
-        }));
-    } else {
-        throw new Error('Gagal mengambil data stiker');
-    }
-}
-
-async function downloadSticker(file_id) {
-    // Mendapatkan file dari Telegram menggunakan file_id
-    let response = await fetch(`https://api.telegram.org/bot8076926331:AAF250aEaHEgyHQ0URzV6dJRcAbMwsePCdc/getFile?file_id=${file_id}`);
-    let data = await response.json();
-
-    if (!data.ok) throw new Error('Gagal mendapatkan file dari Telegram');
-
-    // URL untuk mendownload file
-    let fileUrl = `https://api.telegram.org/file/bot8076926331:AAF250aEaHEgyHQ0URzV6dJRcAbMwsePCdc/${data.result.file_path}`;
-    let fileResponse = await fetch(fileUrl);
-    
-    // Menggunakan arrayBuffer() untuk mendapatkan data biner
-    let buffer = await fileResponse.arrayBuffer();
-
-    // Mengonversi arrayBuffer menjadi Buffer yang dapat digunakan di Node.js
-    return Buffer.from(buffer);
-}
-
-
-
-//total fitur
-//const caseadd = 3;
-//const listrespon = 9;
-//const listsewa = 1;
-const aimenu = 9;
-const botmenu = 27;
-const downloadmenu = 7;
-const funmenu = 25;
-const gamemenu = 11;
-const grupmenu = 23;
-const ownermenu = 46;
-const quotesmenu = 9;
-const searchmenu = 10;
-const toolsmenu = 50;
-
-// Total fitur otomatis
-const totalfitur = ownermenu  + grupmenu + botmenu + toolsmenu + aimenu + searchmenu + downloadmenu + quotesmenu + funmenu + gamemenu ;
 
 //fungsi auto ai
 if (!fs.existsSync(autoAIPath)) fs.writeFileSync(autoAIPath, JSON.stringify({}));
@@ -604,7 +522,6 @@ if (autoAIData && autoAIData[m.sender]) {
 	}
 
 }
-const { downloadContentFromMessage } = require('@whiskeysockets/baileys'); // Pastikan ini di bagian atas kode
 
 global.blockedChats = new Set(loadBlockedUsers());
 
@@ -620,77 +537,103 @@ function saveBlockedUsers() {
     fs.writeFileSync(blockUserPath, JSON.stringify([...global.blockedChats], null, 2));
 }
 
+// Fungsi untuk format angka dengan pemisah ribuan
+function formatp(value) {
+    return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+//total fitur (kalau mau kurang/tambah fitur, jangan lupa jumlah fitur dibawah ini di sesuaikan, hehe)
+const aimenu = 9;
+const botmenu = 28;
+const downloadmenu = 10;
+const financemenu = 5 ;
+const funmenu = 27;
+const gamemenu = 11;
+const grupmenu = 23;
+const konvertmenu = 21;
+const ownermenu = 46;
+const quotesmenu = 9;
+const stickermenu = 14;
+const searchmenu = 16;
+const toolsmenu = 16;
+
+// Total fitur otomatis
+const totalfitur = ownermenu  + grupmenu + botmenu + toolsmenu + aimenu + searchmenu + downloadmenu + quotesmenu + funmenu + gamemenu + financemenu + konvertmenu + stickermenu;
+
+
+
+
 switch(command) {
 	//==================================================================
 	//caseadd = 3
 	case 'matkul': {
 		if (!isCreator) return m.reply(mess.owner);
-		
+	
 		let day = m.text.trim().split(' ')[1]?.toLowerCase(); // Ambil nama hari
-		if (!day) return naze.sendMessage(m.chat, { text: 'Harap masukkan nama hari! Contoh: matkulnya senin' }, { quoted: m });
-		
+		if (!day) return naze.sendMessage(m.chat, { text: 'Harap masukkan nama hari! Contoh: matkul senin' }, { quoted: m });
+	
 		let schedule = '';
-		
+	
 		switch (day) {
 			case 'senin':
 				schedule = `*Jadwal Kuliah Hari Senin:*\n
-	1. Persamaan Diferensial
-	   - Jam        : 09:30-12:20
-	   - Ruangan: 3D-3A.35
-	   - Dosen     : Agus Dahlia
-	   
-	2. Termodinamika
-	   - Jam        : 13:00-15:30
-	   - Ruangan: 3D-3A.35
-	   - Dosen     : Mursyidah`;
+	1. Mekanika Fluida (D)
+	   - Jam       : 07:00 - 09:30
+	   - Ruangan: 3.A.3.36
+	   - Dosen     : MUHAMMAD KHAIRUL AFDHOL,S.T., M.T 
+
+	2. Fisika Dasar 2 (D)
+	   - Jam       : 09:30 - 12:00
+	   - Ruangan: 1.A.1.10
+	   - Dosen     : Dr.MURSYIDAH,M.Sc `;
 				break;
 			case 'selasa':
 				schedule = `*Jadwal Kuliah Hari Selasa:*\n
-	1. Fluida Reservoir
-	   - Jam        : 10:20-12:00
-	   - Ruangan: 3F-3A36
-	   - Dosen     : Muslim`;
+	1. Petrofisika (F)
+	   - Jam       : 07:00 - 08:40
+	   - Ruangan: 3.A.3.30
+	   - Dosen     : Dr. Ir. IRA HERAWATI, S.T., M.T. 
+	
+	2. Praktikum Petrofisika (F)
+	   - Jam       : 13:00 - 14:40
+	   - Ruangan: 3.A.3.30
+	   - Dosen     : Dr. Ir. IRA HERAWATI, S.T., M.T.`;
 				break;
 			case 'rabu':
 				schedule = `*Jadwal Kuliah Hari Rabu:*\n
-	1. Statistik dan Probabilistik
-	   - Jam        : 07:00-08:40
-	   - Ruangan: 3F-3A37
-	   - Dosen     : Dedek Andrian
-
-	2. Praktikum Statistik Probabilistik
-	- Jam        : 08:40-10:20
-	- Ruangan: 3F-3A36
-	- Dosen     : Dedek Andrian
-
-	3. Pendidikan Pancasila
-	   - Jam        : 12:00-12:40
-	   - Ruangan: 3D-3A.31
-	   - Dosen     : Monika Melina
-
-	4. Mekanika Kekuatan Material
-	   - Jam        : 13:00-15:30
-	   - Ruangan: 3D-1A11
-	   - Dosen     : Dedikarni`;
+	1. Metode Numerik teknik Perminyakan (C)
+	   - Jam       : 09:30 - 12:00
+	   - Ruangan: 3.A.3.35
+	   - Dosen     : AGUS DAHLIA, S.Si., M.Si
+	
+	2. Fasilitas Produksi Permukaan (E)
+	   - Jam       : 14:40 - 16:20
+	   - Ruangan: 1.A.1.11
+	   - Dosen     : Ir FITRIANTI, ST., MT `;
 				break;
 			case 'kamis':
 				schedule = `*Jadwal Kuliah Hari Kamis:*\n
-	1. Praktikum Fluida Reservoir
-	   - Jam        : 13:00-14:40
-	   - Ruangan: 3E-3A30
-	   - Dosen     : Muslim`;
+	1. Teknik Pemboran I (E)
+	   - Jam       : 07:00 - 08:40
+	   - Ruangan: 3.A.3.31
+	   - Dosen     : Ir. DIKE FITRIANSYAH PUTRA, S.T.,M.Sc.,M.BA
+	
+	2. Praktikum Teknik Pemboran I (E)
+	   - Jam       : 13:00 - 14:40
+	   - Ruangan: 3.A.3.37
+	   - Dosen     : `;
 				break;
 			case 'jumat':
 				schedule = `*Jadwal Kuliah Hari Jum'at:*\n
-	1. Algoritma dan Struktur
-	   - Jam        : 07:00-08:40
-	   - Ruangan: 1A-1A11
-	   - Dosen     : Fajril Ambia
+	1. Geologi Minyak dan Gas Bumi (F)
+	   - Jam       : 09:30 - 12:00
+	   - Ruangan: 1.A.1.11
+	   - Dosen     : Ir FITRIANTI, ST., MT
 
-	2. Praktikum Algoritma dan Struktur
-	   - Jam        : 14:40-16:20
-	   - Ruangan: 1A-3A11
-	   - Dosen     : Fajril Ambia`;
+	2. Praktikum Fasilitas Produksi Permukaan (E)
+	   - Jam       : 13:00 - 14:40
+	   - Ruangan: 3.A.3.31
+	   - Dosen     : Ir FITRIANTI, ST., MT `;
 				break;
 			default:
 				schedule = 'Nama hari tidak valid. Silakan masukkan hari yang benar (senin, selasa, rabu, kamis, jumat).';
@@ -706,44 +649,142 @@ switch(command) {
 
 	}
 	break
+	case 'antiupsw': {
+		if (!m.isGroup) return m.reply(mess.group);
+		if (!m.isAdmin) return m.reply(mess.admin);
+		if (!m.isBotAdmin) return m.reply(mess.botAdmin);
+	
+		let argsCmd = args[0]?.toLowerCase();
+		if (!argsCmd || !['on', 'off'].includes(argsCmd)) {
+			return m.reply('Gunakan format: .antiupsw on/off');
+		}
+	
+		db.groups[m.chat].antiupsw = argsCmd === 'on';
+		m.reply(`✅ *Anti Upload Status WhatsApp* berhasil *${argsCmd === 'on' ? 'diaktifkan' : 'dinonaktifkan'}*!`);
+	}
+	break;
+		
 	//==================================================================
 	//listrespon = 9
-	case 'oi':{
-		m.reply("paan bro 🗿☕") 
-		}
-	break	
-	case 'ngakak':{
-		m.reply("gitu doang udah ngakak\njadi manusia kok selera humornya rendah🗿☕") 
-		}
-	break
-	case '😭':case '😭😭':{
-		m.reply("ututuu agi cediih ><") 
-		}
-	break
-	case 'hi':{
-		m.reply("ha hi ha hi, gigi lu kuning jirr") 
-		}
-	break
-	case 'goblok':{
-		m.reply("yang goblok mah elu, gua kagak 🥱") 
-		}
-	break
-	case 'diih':case 'dih': case 'dihh':{
-		m.reply("dih diih, biar apa lu begitu???") 
-		}
-	break
-	case 'diam':{
-		m.reply("iya iya aku diam...😌🙏🥺") 
-		}
-	break
-	case 'hai':{
-	m.reply("hai juga🙌🏻") 
+	case 'oi': {
+		let balasanOi = [
+			"Paan bro? Ada apa? 🗿☕",
+			"Oi oi oi, ada masalah kah? 🤨",
+			"Oi apaan? Ada yang bisa gua bantu? 😎",
+			"Oi! Lu manggil, kagak ada kopi nih? ☕",
+			"Oi oi oi... Kirain manggil banci depan gang. 😆"
+		];
+		m.reply(balasanOi[Math.floor(Math.random() * balasanOi.length)]);
 	}
-	break
-	case 'p':{
-		m.reply("*maaf yang mulia, sebelum memberi pesan, alangkah baik nya mengucapkan SALAM terlebih dahulu*") 
-		}
-		break
+	break;
+	case 'ngakak': {
+		let balasanNgakak = [
+			"Gitu doang ngakak? Selera humor lu receh amat 🗿☕",
+			"Halah, ngakak aja pelit. Ketawa yang lebar dong! 🤣",
+			"Hah? Ngakak beneran atau lagi sakit ayan? 😆",
+			"Yah, ini doang? Lu ketawa apa lagi disunat? 🤨",
+			"Ngakak mulu, duit tetap nol kan? 🗿💸"
+		];
+		m.reply(balasanNgakak[Math.floor(Math.random() * balasanNgakak.length)]);
+	}
+	break;
+	case '😭': case '😭😭': {
+		let balasanSedih = [
+			"Duh duh, siapa yang nyakitin lu? Sini peluk dulu 🤗",
+			"Ututuu agi cediih >< jangan nangis dong 😭",
+			"Halah nangis doang, elahhh lemah banget 😏",
+			"Lu nangis karena utang apa mantan? 🤔",
+			"Udah nangis? Sekarang bayarin gua kopi ☕"
+		];
+		m.reply(balasanSedih[Math.floor(Math.random() * balasanSedih.length)]);
+	}
+	break;
+	case 'hi': {
+		let balasanHi = [
+			"Ha hi ha hi, gigi lu kuning jirr! 😆",
+			"Hi juga, tapi bayar pajak dulu! 🏦",
+			"Hi hi hi, lu ngetik sambil ketawa ya? 🤨",
+			"Hi apaan, salam dulu yang sopan! 🙄",
+			"Hi, gimana kabar dompet? Masih kosong? 🗿"
+		];
+		m.reply(balasanHi[Math.floor(Math.random() * balasanHi.length)]);
+	}
+	break;
+	case 'goblok': {
+		let balasanGoblok = [
+			"Yang goblok mah elu, gua kagak 🥱",
+			"Lu goblok, gua jenius. Beda kasta bro 🧐",
+			"Goblok panggil goblok, anjay pertemanan 🤣",
+			"Halah, otak kaga nyampe malah nuduh gua goblok 😴",
+			"Goblok goblok, tapi lu tetap nyari gua kan? 🗿"
+		];
+		m.reply(balasanGoblok[Math.floor(Math.random() * balasanGoblok.length)]);
+	}
+	break;
+	case 'diih': case 'dih': case 'dihh': {
+		let balasanDih = [
+			"Dih diih, biar apa lu begitu??? 😑",
+			"Dih? Astaga, ini tahun berapa masih bilang dih? 🤡",
+			"Dih diih diih, mau gua kasih piring sekalian? 🍽️",
+			"Dih? Lu kurang kerjaan ya? 🧐",
+			"Dih apaan? Mau ribut? 😎"
+		];
+		m.reply(balasanDih[Math.floor(Math.random() * balasanDih.length)]);
+	}
+	break;
+	case 'diam': {
+		let balasanDiam = [
+			"Iya iya aku diam...😌🙏🥺 *tapi bentar doang* 😜",
+			"Disuruh diam? Hmm... Gue pikirin dulu 🧐",
+			"Oke, gua diem... *Tapi di dalam hati ngakak* 🤭",
+			"Gua diem, tapi internet tetap jalan. 😎",
+			"Waduh, gini amat hidup. Disuruh diam sama bot. 🤣"
+		];
+		m.reply(balasanDiam[Math.floor(Math.random() * balasanDiam.length)]);
+	}
+	break;	
+	case 'hai': {
+		let balasanHai = [
+			"Hai juga! Apa kabar? 🤗",
+			"Hai hai hai, ada perlu apa nih? 😆",
+			"Hai, udah makan belum? Kalau belum, aku juga. 🤣",
+			"Hai, tapi inget... *utang jangan lupa bayar!* 😎",
+			"Hai! Tapi kalau cuma hai doang, gua balik tidur. 💤"
+		];
+		m.reply(balasanHai[Math.floor(Math.random() * balasanHai.length)]);
+	}
+	break;
+	case 'p': {
+		let pesanVariasi = [
+			// 🕌 Sopan & Bijak
+			"🙏 *Salam dulu yang mulia, biar makin berkah ngobrolnya!*",
+			"🤝 *Adab dulu yang mulia! Ucapkan salam sebelum berbicara.*",
+			"👑 *Yang mulia, mari kita mulai dengan salam agar lebih beradab!*",
+			"💬 *Salam adalah awal dari komunikasi yang baik, yang mulia!*",
+			"📢 *Sebelum berbicara, ucapkan salam terlebih dahulu, yang mulia!*",
+			"🤲 *Assalamu’alaikum lebih indah, yang mulia!*",
+			"🙌 *Sopan santun dijaga, yang mulia. Ucapkan salam dulu ya!*",
+			"🌟 *Salam itu membuka pintu kebaikan, jangan lupa diucapkan ya, yang mulia!*",
+			"💎 *Yang mulia, orang bijak selalu memulai dengan salam!*",
+			"🎤 *Biar obrolan makin adem, ucapkan salam dulu, yang mulia!*",
+	
+			// ⚡ Kasar & Tegas 🤣🔥
+			"🗿 *OTAK KEMANA? SALAM DULU BARU NGOMONG!*",
+			"🥴 *MULUT MINTA DITAMPAR NIH? SALAM DULU!*",
+			"🫠 *YAH ELOH LAGI, UDAH TAU SALAMIN DULU MALAH NGETIK P DOANG!*",
+			"💀 *Ucapin salam dulu, jangan kayak bocil warnet!*",
+			"👊 *Kalau nggak bisa adab, coba uninstall otak terus pasang ulang!*",
+			"🤦‍♂️ *Astagfirullah, minimal salam lah. Masa 'p' doang?*",
+			"😒 *P P P, APAAN P? UDAH BESAR MASIH GAK PAHAM ADAB?*",
+			"🫵 *BISA NGETIK SALAM GAK? APA HARUS GW YANG KETOK KEPALA LU?!*",
+			"🚶‍♂️ *Males bales ah, dasar bocil lost adab!*",
+			"🔪 *P DOANG? NIH GW KASIH P... Pisau di leher lo!*"
+		];
+	
+		let pesanRandom = pesanVariasi[Math.floor(Math.random() * pesanVariasi.length)];
+		m.reply(pesanRandom);
+	}
+	break;
 	case 'sedih': case 'galau': case '🥺🥺': case '🥺': {
 		let from = m.chat || m.sender;
 	
@@ -942,28 +983,55 @@ switch(command) {
 	
 		// Format tampilan pesan
 		let responseMessage = `
-╔═〇 *BOT INFO* 
-╠═════════〇
-╠» *Total Fitur*         : ${totalfitur}
-╠» *Mode*                  :  ${naze.public ? 'Publik 🌍' : 'Self 🔒'}
-╚» *Pengguna*         : ${Object.keys(global.db.users).length}
+╔═〔 BOT INFO 〕
+╠═════════〇  
+╠»⏳ Total Fitur         : ${totalfitur}
+╠»🚀 Mode                  :  ${naze.public ? 'Publik 🌍' : 'Self 🔒'}
+╠»👥 Pengguna         : ${Object.keys(global.db.users).length}
+╚═════════════════〇
 
+╔═〔 JARINGAN INFO 〕
+╠═══════════〇  
+╠»⚡ Respon    : ${latensi.toFixed(4)} detik
+╠»📡 Ping          : ${(oldd - neww).toFixed(4)} milidetik
+╠»🌐 Status Koneksi : ${latensi < 1 ? '🟢 Stabil' : '🔴 Tidak Stabil'}
+╚═════════════════〇
 
-╔═〇 *JARINGAN INFO* 
-╠═════════〇
-╠» *Respon    :* ${latensi.toFixed(4)} detik
-╠» *Ping*          : ${(oldd - neww).toFixed(4)} milidetik
-╚» *Status Koneksi :* ${latensi < 1 ? 'Stabil' : 'Tidak Stabil'}
+╔═〔 RUN TIME 〕
+╠═════════〇  
+╠»🕒 ${runtime(process.uptime())}
+╚═════════════════〇
 
+╔═〔 🚀 INFORMASI LAINNYA 〕  
+╚══════════════〇  
 
-╔═〇 *RUN TIME* 
-╠═════════〇
-╚» ${runtime(process.uptime())}`;
-	
+📜 Base Script  : Naze/Hitori 
+🔧 Model script : remode script 🔄⚙️ 
+
+🔗 Link Script 
+   https://github.com/nazedev/hitori
+
+🛠 My GitHub
+   https://github.com/BangsulBotz`;
+
 		// Mengirimkan pesan
-		m.reply(responseMessage);
+		await naze.sendMessage(m.chat, {
+			text: responseMessage,
+			contextInfo: {
+				externalAdReply: {
+					title: '🔥 BOT INFO 🔥',
+					showAdAttribution: true,
+					thumbnailUrl: my.thumb, // Menggunakan URL gambar sebagai thumbnail
+					mediaType: 1,
+					previewType: 0,
+					renderLargerThumbnail: true,
+					mediaUrl: my.gh, // URL GitHub yang dituju
+					sourceUrl: my.gh, // Sumber URL GitHub
+				}
+			}
+		},{quoted: m});
 	}
-	break;
+	break
 	case 'confes': case 'confess': case 'menfes': case 'menfess': {
 		if (m.isGroup) return m.reply(mess.private)
 		if (menfes[m.sender]) return m.reply(`Kamu Sedang Berada Di Sesi ${command}!`)
@@ -1273,6 +1341,104 @@ break;
 		}
 	}
 	break
+	case 'statistik': case 'static': {
+		const used = process.memoryUsage();
+		const cpus = os.cpus().map(cpu => {
+			cpu.total = Object.keys(cpu.times).reduce((last, type) => last + cpu.times[type], 0);
+			return cpu;
+		});
+		const cpu = cpus.reduce((last, cpu, _, { length }) => {
+			last.total += cpu.total;
+			last.speed += cpu.speed / length;
+			last.times.user += cpu.times.user;
+			last.times.nice += cpu.times.nice;
+			last.times.sys += cpu.times.sys;
+			last.times.idle += cpu.times.idle;
+			last.times.irq += cpu.times.irq;
+			return last;
+		}, {
+			speed: 0,
+			total: 0,
+			times: {
+				user: 0,
+				nice: 0,
+				sys: 0,
+				idle: 0,
+				irq: 0
+			}
+		});
+	
+		let timestamp = speed();
+		let latensi = speed() - timestamp;
+		let neww = performance.now();
+		let oldd = performance.now();
+		
+		// Fungsi untuk format angka dengan pemisah ribuan dan satuan memori
+		function formatBytes(bytes) {
+			if (bytes < 1024) return `${bytes} B`;
+			else if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+			else if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+			else return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+		}
+	
+		// Format tampilan pesan dengan desain lebih menarik
+		let responseMessage = `
+*🌐 Statistik Server Bot 💻*
+
+🕒 *Waktu Aktif Bot*:
+⏳ ${runtime(process.uptime())}
+
+
+
+🚀 *Respon & Ping*
+ ⚡ *Respon*: ${latensi.toFixed(4)} detik
+ 📶 *Ping*: ${(oldd - neww).toFixed(4)} ms
+ 🌍 *Status Koneksi*: ${latensi < 1 ? 'Stabil' : 'Tidak Stabil'}
+
+
+
+💡 *Memori & CPU Stats*:
+
+💾 *Penggunaan RAM*
+ 📊 *Total*: ${formatBytes(os.totalmem())}
+ 🔋 *Digunakan*: ${formatBytes(os.totalmem() - os.freemem())} (${((os.totalmem() - os.freemem()) / os.totalmem() * 100).toFixed(2)}%)
+
+🧠 *Penggunaan Memori NodeJS*:
+${Object.keys(used).map((key, _, arr) => `*${key.padEnd(Math.max(...arr.map(v => v.length)), ' ')}: ${formatBytes(used[key])}`).join('\n')}
+
+🖥️ *Statistik CPU*
+🏎️ *Model CPU* : ${cpus[0]?.model.trim()} (${cpu.speed} MHz)
+📈 *Total Penggunaan CPU* :
+${Object.keys(cpu.times).map(type => `*${(type + '*').padEnd(6)} : ${(100 * cpu.times[type] / cpu.total).toFixed(2)}%`).join('\n')}
+
+
+
+💻 *Penggunaan CPU per Core* (${cpus.length} Core):
+${cpus.map((cpu, i) => `
+${i + 1}. *${cpu.model.trim()}* (${cpu.speed} MHz)
+${Object.keys(cpu.times).map(type => `*${(type + '*').padEnd(6)} : ${(100 * cpu.times[type] / cpu.total).toFixed(2)}%`).join('\n')}
+`).join('\n')}
+`;
+
+
+	
+		await naze.sendMessage(m.chat, {
+			text: responseMessage,
+			contextInfo: {
+				externalAdReply: {
+					title: 'BANGSULSTART',
+					showAdAttribution: true,
+					thumbnailUrl: my.thumb, // Menggunakan URL gambar sebagai thumbnail
+					mediaType: 1,
+					previewType: 0,
+					renderLargerThumbnail: true,
+					mediaUrl: my.gh, // URL GitHub yang dituju
+					sourceUrl: my.gh, // Sumber URL GitHub
+				}
+			}
+		}, { quoted: m });
+	}
+	break;
 	case 'totalfitur': {
 		m.reply(`Total Fitur : ${totalfitur}`);
 	}
@@ -1421,25 +1587,157 @@ break;
 	}
 	break
 	//==================================================================
-	// downloadmenu = 7
-	case 'gdrive': case 'googledrive':  {
-		if (!args[0]) return m.reply(`Enter the Google Drive link`)
-			m.reply(mess.wait)
-	try {
-	let res = await fg.GDriveDl(args[0])
-	m.reply(`*GDrive DL*
-
-	•° *Nama:* ${res.fileName}
-	• *Size:* ${res.fileSize}
-	•° *Type:* ${res.mimetype}`)
-	setTimeout(() => {
-	naze.sendMessage(m.chat, { document: { url: res.downloadUrl }, fileName: res.fileName, mimetype: res.mimetype }, {})
-	}, 1000)
-	} catch {
-	reply('Error: Check link or try another link') 
+	// downloadmenu = 10
+	case 'capcut': case 'capcutdl': case 'ccdl': {
+		if (!args[0]) return m.reply('🚨 *Masukkan URL CapCut!*\n\nContoh: .capcut https://www.capcut.com/t/Zs8UvcBTp/');
+	
+		let url = args[0];
+		if (!url.includes('capcut.com')) return m.reply('⚠️ *URL tidak valid!*\nPastikan kamu memasukkan tautan dari CapCut.');
+	
+		console.log(`[CAPCUT] Memproses video dari: ${url}`);
+		m.reply('⏳ *Sedang memproses video...*');
+	
+		try {
+			let res = await fetch(`https://api.skyzopedia.us.kg/api/download/capcut?url=${url}`);
+			let data = await res.json();
+	
+			console.log(`[CAPCUT] Response API:`, data);
+	
+			if (!data.status) {
+				console.log(`[CAPCUT] Gagal mengunduh video dari ${url}`);
+				return m.reply('❌ *Gagal mengunduh video!*\nCoba lagi nanti.');
+			}
+	
+			let { title, description, usage, video } = data.result;
+	
+			let caption = `🎬 *CapCut Video Downloader*\n\n` +
+						  `✨ *Judul:* ${title}\n` +
+						  `📝 *Deskripsi:* ${description}\n` +
+						  `🔥 *Pengguna:* ${usage} telah menggunakan template ini!\n` +
+						  `🌐 *Tautan Template:* ${url}\n\n` +
+						  `📥 *Mengunduh video...*`;
+	
+			console.log(`[CAPCUT] Mengirim video: ${video}`);
+	
+			await naze.sendMessage(m.chat, { video: { url: video }, caption }, { quoted: m });
+	
+			console.log(`[CAPCUT] Video berhasil dikirim ke ${m.chat}`);
+		} catch (error) {
+			console.error(`[CAPCUT] Error:`, error);
+			m.reply('❌ *Terjadi kesalahan!*\nPastikan URL benar dan coba lagi nanti.');
+		}
 	}
+	break;
+	case 'gdrive': case 'googledrive': {
+		if (!args[0]) return m.reply(`Masukkan link Google Drive`);
+	
+		console.log(`User ${m.sender} meminta untuk mendownload file dari Google Drive: ${args[0]}`);
+	
+		m.reply(mess.wait, { quoted: m });
+	
+		try {
+			let res = await fetch(`https://api.siputzx.my.id/api/d/gdrive?url=${args[0]}`);
+			let data = await res.json();
+	
+			if (data.status) {
+				let fileData = data.data;
+				lfileName = fileData.name || 'unknown';
+				let fileUrl = fileData.download;
+				let fileLink = fileData.link;
+	
+				console.log(`Berhasil mendapatkan data file: ${fileName}, link download: ${fileUrl}`);
+	
+				// Menentukan ekstensi file dengan aman
+				let fileExtMatch = fileName.match(/\.([0-9a-z]+)(?:[\?#]|$)/i);
+				let fileExt = fileExtMatch ? fileExtMatch[1].toLowerCase() : 'unknown';
+	
+				// Daftar MIME types yang lebih lengkap
+				let mimeTypes = {
+					'mp3': 'audio/mpeg',
+					'wav': 'audio/wav',
+					'ogg': 'audio/ogg',
+					'flac': 'audio/flac',
+					'aac': 'audio/aac',
+					'jpg': 'image/jpeg',
+					'jpeg': 'image/jpeg',
+					'png': 'image/png',
+					'gif': 'image/gif',
+					'webp': 'image/webp',
+					'mp4': 'video/mp4',
+					'mkv': 'video/x-matroska',
+					'avi': 'video/x-msvideo',
+					'mov': 'video/quicktime',
+					'zip': 'application/zip',
+					'rar': 'application/vnd.rar',
+					'7z': 'application/x-7z-compressed',
+					'tar': 'application/x-tar',
+					'gz': 'application/gzip',
+					'xz': 'application/x-xz',
+					'pdf': 'application/pdf',
+					'doc': 'application/msword',
+					'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+					'ppt': 'application/vnd.ms-powerpoint',
+					'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+					'xls': 'application/vnd.ms-excel',
+					'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+					'iso': 'application/x-iso9660-image',
+					'dmg': 'application/x-apple-diskimage',
+					'apk': 'application/vnd.android.package-archive',
+					'exe': 'application/x-msdownload',
+					'msi': 'application/x-msi',
+					'txt': 'text/plain',
+					'csv': 'text/csv',
+					'html': 'text/html',
+					'json': 'application/json'
+				};
+	
+				let mimetype = mimeTypes[fileExt] || 'application/octet-stream';
+	
+				// Membuat pesan info yang lebih jelas
+				let infoMessage = `*GDrive DL* 📥\n\n📂 *Nama:* ${fileName}\n📄 *Tipe:* ${fileExt.toUpperCase()}\n🔗 *Link:* ${fileLink}`;
+	
+				// Cek tipe file sebelum mengirim
+				if (mimetype.startsWith('audio/')) {
+					console.log(`Mengirim audio: ${fileName}`);
+					await naze.sendMessage(m.chat, { 
+						audio: { url: fileUrl }, 
+						mimetype, 
+						fileName 
+					}, { quoted: m });
+				} else if (mimetype.startsWith('image/')) {
+					console.log(`Mengirim foto: ${fileName}`);
+					await naze.sendMessage(m.chat, { 
+						image: { url: fileUrl }, 
+						caption: infoMessage 
+					}, { quoted: m });
+				} else if (mimetype.startsWith('video/')) {
+					console.log(`Mengirim video: ${fileName}`);
+					await naze.sendMessage(m.chat, { 
+						video: { url: fileUrl }, 
+						caption: infoMessage 
+					}, { quoted: m });
+				} else {
+					console.log(`Mengirim dokumen: ${fileName} (${mimetype})`);
+					await naze.sendMessage(m.chat, { 
+						document: { url: fileUrl }, 
+						mimetype, 
+						fileName 
+					}, { quoted: m });
+				}
+	
+				// Kirim pesan informasi
+				await naze.sendMessage(m.chat, { text: infoMessage }, { quoted: m });
+	
+			} else {
+				console.log(`Error: Tidak bisa mengambil data file dari Google Drive: ${args[0]}`);
+				m.reply('❌ Error: Gagal mengambil data file. Periksa kembali link Google Drive.', { quoted: m });
+			}
+		} catch (error) {
+			console.log(`Error saat memanggil API Google Drive: ${error.message}`);
+			m.reply('⚠️ Error: Terjadi kesalahan saat memproses link Google Drive.', { quoted: m });
+		}
 	}
-	break
+	break;
 	case 'ig': case 'igdl': case 'instagram': {
 		try {
 			if (!args[0]) return m.reply('Harap masukkan URL Instagram yang valid!', m);
@@ -1468,40 +1766,79 @@ break;
 	}
 	break;
 	case 'mediafire': case 'mfdl': 
-	if (args.length < 1) {
-	  return m.reply('Mohon berikan URL MediaFire yang valid!');
-	}
-	
-	let url = args.join(' ').replace(/ /g, '').replace('https://', '').replace('www.', '');
-	let apiUrl = `https://api.siputzx.my.id/api/d/mediafire?url=${url}`;
-  
-	// Mengirimkan permintaan ke API MediaFire
-	fetch(apiUrl)
-	  .then(response => response.json())
-	  .then(async data => {
-		if (data.success) {
-		  // Mendapatkan URL file untuk diunduh
-		  let downloadUrl = data.url;
-		  
-		  // Unduh file menggunakan URL yang didapat
-		  const buffer = await downloadFile(downloadUrl);  // Pastikan Anda punya fungsi untuk mengunduh file
-		  
-		  // Kirimkan file yang sudah diunduh ke pengguna
-		  m.reply('Berikut file yang telah diunduh dari MediaFire:', {
-			document: { url: buffer },
-			mimetype: 'application/octet-stream', // atau tipe mime sesuai jenis file
-			fileName: 'file_unduhan' // Nama file yang diunduh, bisa Anda sesuaikan
-		  });
-		} else {
-		  // Jika gagal
-		  m.reply('Gagal mendapatkan link download dari MediaFire. Pastikan URL yang diberikan benar.');
-		}
-	  })
-	  .catch(err => {
-		console.log(err);
-		m.reply('Terjadi kesalahan saat mengakses API.');
-	  });
-	break;
+    if (args.length < 1) {
+        return m.reply('⚠️ Mohon berikan URL MediaFire yang valid!');
+    }
+
+    let url = args.join(' ').trim();
+    let apiUrl = `https://api.siputzx.my.id/api/d/mediafire?url=${encodeURIComponent(url)}`;
+
+    try {
+        let res = await fetch(apiUrl);
+        let json = await res.json();
+
+        if (json.status && json.data) {
+            let fileName = json.data.fileName;
+            let fileUrl = json.data.downloadLink;
+            let fileSize = json.data.fileSize;
+            let fileExt = fileName.split('.').pop().toLowerCase();
+
+            // Mapping ekstensi ke MIME type agar tidak jadi .bin
+            let mimeTypes = {
+                'mp3': 'audio/mpeg',
+                'wav': 'audio/wav',
+                'ogg': 'audio/ogg',
+                'mp4': 'video/mp4',
+                'mkv': 'video/x-matroska',
+                'avi': 'video/x-msvideo',
+                'zip': 'application/zip',
+                'rar': 'application/x-rar-compressed',
+                '7z': 'application/x-7z-compressed',
+                'pdf': 'application/pdf',
+                'doc': 'application/msword',
+                'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'ppt': 'application/vnd.ms-powerpoint',
+                'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                'xls': 'application/vnd.ms-excel',
+                'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'txt': 'text/plain',
+                'json': 'application/json',
+                'apk': 'application/vnd.android.package-archive'
+            };
+
+            let mimetype = mimeTypes[fileExt] || 'application/octet-stream';
+
+            // Log informasi file
+            console.log(`✅ Berhasil mendapatkan file dari MediaFire: ${fileName}, ukuran: ${fileSize}, link: ${fileUrl}`);
+
+            // Informasi file sebelum dikirim
+            let fileInfo = `📥 *MediaFire DL*\n\n📂 *Nama:* ${fileName}\n📏 *Ukuran:* ${fileSize}\n🔗 *Link:* ${json.data.meta.url}`;
+
+            await naze.sendMessage(m.chat, { text: fileInfo }, { quoted: m });
+
+            // Kirim file sesuai jenisnya
+            if (mimetype.startsWith('audio/')) {
+                await naze.sendMessage(m.chat, { audio: { url: fileUrl }, mimetype, fileName }, { quoted: m });
+            } else if (mimetype.startsWith('video/')) {
+                await naze.sendMessage(m.chat, { video: { url: fileUrl }, caption: fileInfo }, { quoted: m });
+            } else {
+                await naze.sendMessage(m.chat, { 
+                    document: { url: fileUrl }, 
+                    mimetype, 
+                    fileName 
+                }, { quoted: m });
+            }
+
+        } else {
+            console.log(`❌ Gagal mendapatkan data file dari MediaFire: ${url}`);
+            m.reply('⚠️ Gagal mendapatkan file dari MediaFire. Pastikan URL yang diberikan benar.');
+        }
+
+    } catch (error) {
+        console.log(`🚨 Error saat mengakses API MediaFire: ${error.message}`);
+        m.reply('⚠️ Terjadi kesalahan saat memproses link MediaFire.');
+    }
+    break;
 	case 'mediafire1': {
 		if (!text) return m.reply(`Example: ${prefix + command} https://www.mediafire.com/file/xxxxxxxxx/xxxxx.zip/file`)
 		if (!isUrl(args[0]) && !args[0].includes('mediafire.com')) return m.reply('Url Invalid!')
@@ -1539,22 +1876,30 @@ break;
 		}
 		}
 		break	
-	case 'tiktok': 	case 'tiktokdown': 	case 'ttdown': 		case 'ttdl': 		case 'tt': 			case 'ttmp4': 		case 'ttvideo': 	case 'tiktokmp4': case 'tiktokvideo':  {
-			if (!text) return m.reply(`Example: ${prefix + command} url_tiktok`)
-			if (!text.includes('tiktok.com')) return m.reply('Url Tidak Mengandung Result Dari TikTok!')
+	case 'tiktok': case 'tiktokdown': case 'ttdown': case 'ttdl': case 'tt': case 'ttmp4': case 'ttvideo': case 'tiktokmp4': case'tiktokvideo': {
+			if (!text) return m.reply(`Example: ${prefix + command} url_tiktok`);
+			if (!text.includes('tiktok.com')) return m.reply('Url Tidak Mengandung Result Dari TikTok!');
 		
 			try {
 				const hasil = await tiktokDl(text);
-			m.reply(mess.wait)
-			if (hasil && hasil.size_nowm) {
-				await naze.sendFileUrl(m.chat, hasil.data[1].url, '')
-			} else {
-				for (let i = 0; i < hasil.data.length; i++) {
-					await naze.sendFileUrl(m.chat, hasil.data[i].url,'')
-				}
-			}
+				m.reply(mess.wait);
 		
-				// Mengirim Audio
+				if (hasil && hasil.size_nowm) {
+					// Mengirim video sebagai reply ke pesan user
+					await naze.sendMessage(m.chat, {
+						video: { url: hasil.data[1].url }
+					}, { quoted: m }); // Ini untuk memastikan video reply pesan si user
+				} else {
+					for (let i = 0; i < hasil.data.length; i++) {
+						// Mengirim video sebagai reply ke pesan user
+						await naze.sendMessage(m.chat, {
+							video: { url: hasil.data[i].url }
+						}, { quoted: m }); // Ini untuk memastikan video reply pesan si user
+					}
+				}
+		
+
+								// Mengirim Audio
 				if (hasil.music_info && hasil.music_info.url) {
 					await naze.sendMessage(m.chat, {
 						audio: { url: hasil.music_info.url },
@@ -1572,13 +1917,13 @@ break;
 						}
 					}, { quoted: m });
 				} else {
-					m.reply('Gagal mengunduh audio!')
+					m.reply('Gagal mengunduh audio!');
 				}
 			} catch (e) {
-				m.reply('Gagal/Url tidak valid!')
+				m.reply('Gagal/Url tidak valid!');
 			}
 		}
-		break
+		break;
 	case 'ytmp3': case 'youtubemp3': {
 		if (!text) return m.reply(`Contoh: ${prefix + command} url_youtube`);
 		if (!text.includes('youtu')) return m.reply('URL Tidak Mengandung Result Dari YouTube!');
@@ -1687,6 +2032,299 @@ break;
 		}
 	}
 	break;
+	case 'fbdl': case 'facebookdownload': case 'facebookdl': {
+		const url = args[0]; // Ambil URL dari input pengguna
+	
+		if (!url) {
+			return await naze.sendMessage(m.chat, { text: 'Tolong berikan URL Facebook yang valid!' }, { quoted: m });
+		}
+	
+		try {
+			// Memanggil API SiputZX untuk mendapatkan data unduhan
+			const response = await axios.get(`https://api.siputzx.my.id/api/d/facebook?url=${url}`);
+			const data = response.data;
+	
+			if (data.status) {
+				// Mendownload video atau foto
+				const mediaUrl = data.data.url; // URL media
+				const mediaType = mediaUrl.split('.').pop(); // Menentukan tipe file berdasarkan ekstensi
+	
+				// Mengirimkan media langsung ke pengguna
+				if (mediaType === 'mp4') {
+					await naze.sendMessage(m.chat, { video: { url: mediaUrl }, caption: 'Video Facebook Ditemukan', mimetype: 'video/mp4' }, { quoted: m });
+				} else if (mediaType === 'jpg' || mediaType === 'jpeg' || mediaType === 'png') {
+					await naze.sendMessage(m.chat, { image: { url: mediaUrl }, caption: 'Gambar Facebook Ditemukan' }, { quoted: m });
+				} else {
+					await naze.sendMessage(m.chat, { text: 'Tipe file tidak dikenal atau tidak didukung.' }, { quoted: m });
+				}
+			} else {
+				await naze.sendMessage(m.chat, { text: 'Tidak dapat menemukan video/foto dari URL tersebut.' }, { quoted: m });
+			}
+		} catch (error) {
+			console.error(error);
+			await naze.sendMessage(m.chat, { text: 'Terjadi kesalahan saat mencoba mengakses API.' }, { quoted: m });
+		}
+	}
+	break;	
+	case 'twdl': case 'twitterdownload': case 'twitterdl': {
+		const url = args[0]; // Ambil URL dari input pengguna
+	
+		if (!url) {
+			return await naze.sendMessage(m.chat, { text: 'Tolong berikan URL Twitter yang valid!' }, { quoted: m });
+		}
+	
+		try {
+			// Memanggil API SiputZX untuk mendapatkan data unduhan
+			const response = await axios.get(`https://api.siputzx.my.id/api/d/twitter?url=${url}`);
+			const data = response.data;
+	
+			if (data.status) {
+				const mediaUrl = data.data.downloadLink; // Link media (video atau gambar)
+				const mediaType = mediaUrl.split('.').pop(); // Menentukan tipe file berdasarkan ekstensi
+	
+				// Mengirimkan media langsung ke pengguna
+				if (mediaType === 'mp4') {
+					await naze.sendMessage(m.chat, { video: { url: mediaUrl }, caption: data.data.videoDescription || 'Video Twitter Ditemukan', mimetype: 'video/mp4' }, { quoted: m });
+				} else if (mediaType === 'jpg' || mediaType === 'jpeg' || mediaType === 'png') {
+					await naze.sendMessage(m.chat, { image: { url: mediaUrl }, caption: 'Gambar Twitter Ditemukan' }, { quoted: m });
+				} else {
+					await naze.sendMessage(m.chat, { text: 'Tipe file tidak dikenal atau tidak didukung.' }, { quoted: m });
+				}
+			} else {
+				await naze.sendMessage(m.chat, { text: 'Tidak dapat menemukan video/foto dari URL tersebut.' }, { quoted: m });
+			}
+		} catch (error) {
+			console.error(error);
+			await naze.sendMessage(m.chat, { text: 'Terjadi kesalahan saat mencoba mengakses API.' }, { quoted: m });
+		}
+	}
+	break;	
+	//==================================================================
+	//financemenu = 5
+	case "comodityprice":
+		let daftarKomoditas = [
+			"gold", "soybean_oil", "wheat", "platinum", "micro_silver", "lean_hogs",
+			"corn", "oat", "aluminum", "soybean_meal", "silver", "soybean",
+			"lumber", "live_cattle", "sugar", "natural_gas", "crude_oil",
+			"orange_juice", "coffee", "cotton", "copper", "micro_gold",
+			"feeder_cattle", "rough_rice", "palladium", "cocoa", "brent_crude_oil",
+			"gasoline_rbob", "heating_oil", "class_3_milk"
+		];
+	
+		if (!text) {
+			let daftarTersedia = `📌 *List Komoditas yang Tersedia:*\n\n`;
+			daftarKomoditas.forEach((item, index) => {
+				daftarTersedia += `🔹 ${index + 1}. ${item}\n`;
+			});
+	
+			return m.reply(`⚠️ Format salah! Harap masukkan nama komoditas yang ingin dicek.\n\n${daftarTersedia}\n📌 *Contoh:* .comodityprice gold`);
+		}
+	
+		let namaKomoditas = encodeURIComponent(text.trim().toLowerCase());
+		if (!daftarKomoditas.includes(namaKomoditas)) {
+			return m.reply(`❌ Komoditas *${text}* tidak ditemukan!\nGunakan nama komoditas yang tersedia dalam daftar.\n\n📌 *Contoh:* .comodityprice gold`);
+		}
+	
+		let api4 = "A50K0DsP6NRbwd8Dsro7Yg==7rpgFFwtSv687zai"; // API Key
+		let url4 = `https://api.api-ninjas.com/v1/commodityprice?name=${namaKomoditas}`;
+	
+		try {
+			m.reply("📊 Sedang mengambil data harga komoditas... Mohon tunggu sebentar!");
+	
+			let response = await axios.get(url4, {
+				headers: { "X-Api-Key": api4 }
+			});
+	
+			if (response.status === 200 && response.data) {
+				let data = response.data;
+	
+				let hasil = `📈 *Informasi Harga Komoditas*\n\n` +
+							`📌 *Nama Komoditas:* ${data.name || "Tidak diketahui"}\n` +
+							`💰 *Harga Saat Ini:* $${data.price ? data.price.toLocaleString("id-ID") : "Tidak diketahui"}\n` +
+							`🏛️ *Bursa:* ${data.exchange || "Tidak diketahui"}\n` +
+							`🕒 *Terakhir Diperbarui:* ${data.updated ? new Date(data.updated * 1000).toLocaleString("id-ID") : "Tidak diketahui"}`;
+	
+				m.reply(hasil);
+			} else {
+				m.reply("⚠️ Maaf, tidak ada informasi harga yang ditemukan untuk komoditas tersebut.");
+			}
+		} catch (error) {
+			m.reply(`❌ Terjadi kesalahan saat mengambil data: ${error.message}`);
+		}
+		break;
+	case 'konversi': {
+		// Peta simbol mata uang
+		const currencySymbols = {
+			USD: '$',
+			IDR: 'Rp.',
+			EUR: '€',
+			GBP: '£',
+			JPY: '¥',
+			AUD: 'A$',
+			CAD: 'C$',
+			SGD: 'S$',
+			MYR: 'RM',
+			// Tambahkan simbol lain sesuai kebutuhan
+		};
+	
+		// Fungsi untuk menambahkan pemisah ribuan
+		function formatNumber(number) {
+			return parseFloat(number).toLocaleString(); // Menggunakan format lokal default untuk pemisah ribuan
+		}
+	
+		// Ambil argumen dari pengguna, misalnya: 'konversi 100 USD ke IDR'
+		let args = m.text.split(' ');
+		
+		if (args.length < 4) {
+			return m.reply('Format salah. Contoh: konversi 100 USD ke IDR');
+		}
+		
+		let amount = parseFloat(args[1]); // Jumlah uang yang akan dikonversi
+		let fromCurrency = args[2].toUpperCase(); // Mata uang asal
+		let toCurrency = args[4].toUpperCase(); // Mata uang tujuan
+		
+		if (isNaN(amount)) {
+			return m.reply('Jumlah uang tidak valid. Harap masukkan angka yang benar.');
+		}
+	
+		// API URL untuk mendapatkan nilai tukar
+		let apiUrl = `https://api.exchangerate-api.com/v4/latest/${fromCurrency}`;
+	
+		// Panggil API nilai tukar mata uang
+		try {
+			let fetch = require('node-fetch');
+			let response = await fetch(apiUrl);
+			let data = await response.json();
+	
+			if (!data.rates[toCurrency]) {
+				return m.reply(`Mata uang ${toCurrency} tidak valid atau tidak ditemukan.`);
+			}
+	
+			let rate = data.rates[toCurrency];
+			let convertedAmount = (amount * rate).toFixed(2); // Hitung hasil konversi
+	
+			// Ambil simbol mata uang jika ada, jika tidak tampilkan kode mata uang
+			let fromSymbol = currencySymbols[fromCurrency] || fromCurrency;
+			let toSymbol = currencySymbols[toCurrency] || toCurrency;
+	
+			// Format angka dengan pemisah ribuan
+			let formattedAmount = formatNumber(amount);
+			let formattedConvertedAmount = formatNumber(convertedAmount);
+	
+			// Kirim hasil konversi dengan simbol mata uang
+			m.reply(`💸 ${fromSymbol}${formattedAmount} ${fromCurrency} = ${toSymbol}${formattedConvertedAmount} ${toCurrency}\nNilai tukar: 1 ${fromCurrency} = ${rate.toLocaleString()} ${toCurrency}`);
+		} catch (error) {
+			m.reply('Maaf, terjadi kesalahan saat melakukan konversi. Coba lagi nanti.');
+		}
+	}
+	break;
+	case 'konvert': {
+		const input = args.join(' ').toLowerCase(); // Menggabungkan argumen input dari pengguna
+		
+		// Kurs konversi untuk setiap cent ke IDR
+		const conversionRates = {
+			auc: { rate: 106.4, flag: '🇦🇺', description: 'Australian Cent' },
+			cac: { rate: 102.5, flag: '🇨🇦', description: 'Canadian Cent' },
+			chc: { rate: 104.0, flag: '🇨🇳', description: 'Chinese Cent' },
+			euc: { rate: 150.0, flag: '🇪🇺', description: 'European Cent' },
+			gbc: { rate: 130.0, flag: '🇬🇧', description: 'British Cent' },
+			usc: { rate: 151.7, flag: '🇺🇸', description: 'US Cent' },
+		};
+	
+		// Jika input mengonversi dari cent ke IDR
+		if (input.includes('cent ke idr')) {
+			const parts = input.split(' '); // Memisahkan input berdasarkan spasi
+			const amount = parseFloat(parts[0]); // Mengambil jumlah dari input
+	
+			if (isNaN(amount)) return m.reply('Masukkan jumlah cent yang valid.');
+	
+			// Konversi semua cent ke IDR
+			let resultMessage = `💵 *Konversi dari ${amount} Cent ke IDR :*\n\n`;
+	
+			for (const [code, { rate, flag, description }] of Object.entries(conversionRates)) {
+				const idrValue = amount * rate;
+				resultMessage += `${flag} ${code.toUpperCase()} (${description}):\n ${amount} ${code.toUpperCase()} = Rp. ${idrValue.toLocaleString('id-ID')}\n\n`;
+			}
+	
+			m.reply(resultMessage);
+	
+		// Jika input mengonversi dari IDR ke cent
+		} else if (input.includes('idr ke cent')) {
+			const parts = input.split(' '); // Memisahkan input berdasarkan spasi
+			const idrValue = parseFloat(parts[0].replace(/\./g, '')); // Mengambil nilai IDR dan menghapus titik
+	
+			if (isNaN(idrValue)) return m.reply('Masukkan jumlah IDR yang valid.');
+	
+			// Menampilkan hasil konversi dari IDR ke semua mata uang cent
+			let resultMessage = `💵 *Konversi dari Rp. ${idrValue.toLocaleString('id-ID')} ke Cent :*\n\n`;
+	
+			for (const [code, { rate, flag, description }] of Object.entries(conversionRates)) {
+				const centValue = idrValue / rate;
+				resultMessage += `${flag} ${code.toUpperCase()} (${description}): \n Rp. ${idrValue} = ${centValue.toFixed(2)} ${code.toUpperCase()}\n\n`;
+			}
+	
+			m.reply(resultMessage);
+	
+		} else {
+			m.reply('Format yang salah. Gunakan format:\n- konvert <jumlah> cent ke idr\n- konvert <jumlah> idr ke cent');
+		}
+	}
+	break;
+	case 'nilai-matauang': {
+		try {
+			const fetch = require('node-fetch');
+	
+			if (!args[0]) return m.reply('⚠️ Mohon masukkan kode mata uang!\n\nContoh: *.nilai-matauang IDR*');
+			
+			const currency = args[0].toUpperCase(); // Ambil mata uang yang dimasukkan user
+			const apiUrl = `https://v6.exchangerate-api.com/v6/6f102cad97b2ba0ad5b4cf48/latest/${currency}`;
+	
+			const response = await fetch(apiUrl);
+			if (!response.ok) throw new Error(`Terjadi kesalahan: ${response.status}`);
+	
+			const data = await response.json();
+			if (data.result !== 'success') throw new Error('Gagal mengambil data nilai tukar.');
+	
+			const rates = data.conversion_rates;
+			const sortedCurrencies = Object.keys(rates).sort(); // Urutkan berdasarkan abjad
+	
+			let message = `📌 *Nilai Tukar Mata Uang Terbaru (${currency}) 💲*\n\n`;
+			for (let curr of sortedCurrencies) {
+				message += `💰 *${curr}* : ${rates[curr]}\n`;
+			}
+	
+			message += `\n🔄 *Data diperbarui:* ${data.time_last_update_utc}`;
+	
+			await naze.sendMessage(m.chat, { text: message });
+		} catch (error) {
+			console.error(error);
+			await naze.sendMessage(m.chat, { text: `⚠️ Terjadi kesalahan saat mengambil data nilai tukar mata uang.` });
+		}
+	}
+	break;
+	case 'profitkalkulator': {
+		if (!text) return m.reply(`Example: ${prefix + command} 200000 5`);
+		let args = text.replace(/\./g, '').replace(/,/g, '').split(' ');
+		if (args.length !== 2 || isNaN(args[0]) || isNaN(args[1])) {
+		return m.reply(`Format salah! Gunakan: ${prefix + command} (jumlah modal) (persentase keuntungan)\nContoh: ${prefix + command} 200000 5`);
+		}
+		
+		let modalAwal = parseFloat(args[0]);
+		let persenKeuntungan = parseFloat(args[1]);
+		
+		let hasil = `\n*Modal awal:* Rp ${modalAwal.toLocaleString('id-ID')}\n`;
+		hasil += `*Keuntungan per hari:* ${persenKeuntungan}%\n\n`;
+		
+		for (let i = 1; i <= 30; i++) {
+		let keuntungan = modalAwal * (persenKeuntungan / 100);
+		let modalAkhir = modalAwal + keuntungan;
+		hasil += `- *Hari ke-${i}*\n Modal awal: Rp ${modalAwal.toLocaleString('id-ID')}\n Modal akhir: Rp ${modalAkhir.toLocaleString('id-ID')}\n\n`;
+		modalAwal = modalAkhir;
+		}
+		
+		m.reply(hasil);
+		}
+		break;
 	//==================================================================
 	//funmenu = 25
 	case 'apakah': {
@@ -1715,6 +2353,35 @@ break;
 		naze.sendMessage(from, { text: message, mentions: [m.sender] }, { quoted: m });
 	}
 	break;
+	case 'dukun': case 'dukunsakti': {
+		if (!q) return m.reply(`🌙 *Bisikan Alam Gaib...* 🌙\n\n❗ *Masukkan nama untuk membaca energimu!*\n\n_Contoh:_ .dukun Putu`)
+	
+		try {
+			m.reply('🔮 *Memanggil kekuatan gaib...* 🌑\nEnergi mulai berkumpul, harap tenang...')
+	
+			let url = `https://api.siputzx.my.id/api/ai/dukun?content=${encodeURIComponent(q)}`
+			let response = await fetch(url)
+			let json = await response.json()
+	
+			if (json.status && json.data) {
+				let hasil = json.data.trim()
+	
+				let result = `🌌 *Penerawangan Gaib* 🌌\n\n` +
+							 `👤 *Nama:* ${q}\n` +
+							 `📜 *Hasil Penerawangan:*\n\n` +
+							 `_${hasil}_\n\n` +
+							 `☠️ *Pesan Dari Alam Lain:* Percayalah pada firasatmu... dan jangan abaikan pertanda yang datang!`
+	
+				m.reply(result)
+			} else {
+				m.reply('⚠️ *Energi terganggu!* 🌫️\nSepertinya ada gangguan dari alam lain... coba lagi nanti.')
+			}
+		} catch (error) {
+			console.error(`[ERROR - dukun]: ${error.message}`)
+			m.reply('💀 *Kekuatan gelap menghalangi penerawangan!* 🚫\nCoba lagi nanti atau periksa koneksimu.')
+		}
+	}
+	break	
 	case 'kapan': case 'kapankah': {
 		let from = m.chat || m.sender;
 		if (!text) return m.reply(`Contoh: ${prefix + command} saya menang?`);
@@ -1739,6 +2406,47 @@ break;
 		// Mengirimkan pesan dengan format yang keren
 		naze.sendMessage(from, { text: message, mentions: [m.sender] }, { quoted: m });
 	}
+	break;
+	case 'kendaraancek': {
+		let target = q ? q.replace(/@/g, '') : m.pushName; // Perbaikan username
+		let kendaraan = [
+			'Motor Supra Fit', 'Mobil Avanza', 'Truk Gandeng', 'Jet Pribadi', 
+			'Bajaj', 'Helikopter', 'Pesawat Tempur', 'Babi Ngepet', 
+			'Jerapah Modifikasi', 'Kuda Besi', 'Odong-odong', 'Sepeda Lipat', 
+			'Tank Baja', 'Mobil Batmobile', 'Skateboard Rocket', 'Kereta Kuda', 'Sepeda BMX'
+		];
+		let kondisi = [
+			'rongsok', 'karatan', 'butut', 'kredit macet', 'ngesot sendiri', 
+			'ban bocor tiap hari', 'mesin panas auto mati', 'nyicil sampai kiamat', 
+			'ngebul asap hitam', 'roda 3 hilang 1', 'jalan mundur doang', 
+			'turbo KW', 'pintu nyangkut', 'gasnya patah', 'rem blong tiap belok', 
+			'bannya cuma satu', 'roda segitiga', 'nabrak angin langsung tumbang'
+		];
+		let pesan = [
+			'🚨 Segera ke bengkel sebelum makin ngenes!',
+			'🤡 Udah nggak bisa diperbaiki, siap-siap jalan kaki!',
+			'💸 Biaya perbaikan lebih mahal dari harga kendaraannya!',
+			'💀 Hati-hati, kendaraan ini bisa meledak kapan saja!',
+			'🛑 Peringatan! Kendaraan ini sudah dilarang beroperasi!',
+			'😂 Sumpah, ini kendaraan atau besi tua?',
+			'🏎️ Jangan coba-coba balapan, bisa-bisa jalan mundur!',
+			'⚠️ Pastikan pakai helm dan doa sebelum naik!',
+			'🚑 Asuransi nggak bakal nerima klaim kalau ini kecelakaan!',
+			'💀 Siap-siap didoakan sebelum berangkat, nyawa taruhannya!'
+		];
+	
+		let randomKendaraan = kendaraan[Math.floor(Math.random() * kendaraan.length)];
+		let randomKondisi = kondisi[Math.floor(Math.random() * kondisi.length)];
+		let randomPesan = pesan[Math.floor(Math.random() * pesan.length)];
+	
+		let hasil = `🚦 *Cek Kendaraan Gaib* 🚦\n\n` +
+					`👤 *Nama            :* ${target}\n` +
+					`🚗 *Kendaraan :* ${randomKendaraan}\n` +
+					`🔧 *Kondisi        :* ${randomKondisi}\n\n` +
+					`⚠️ *Pesan Penting :* ${randomPesan}`;
+	
+		m.reply(hasil);
+	} 
 	break;
 	case 'siapa': case 'siapakah': {
 		if (!m.isGroup) return m.reply(mess.group);
@@ -1959,9 +2667,7 @@ break;
 
 	// Teks Profil dengan Visual yang Ditingkatkan
 	const profileText = `
-	╭━━━━━━━━━━━━━━━╮
-	┃      ≡《 👤 Check *${username}* 》≡         ┃
-	╰━━━━━━━━━━━━━━━╯
+	    ≡《 👤 Check *${username}* 》≡       
 
 	*🌟 Nama:* ${m.pushName ? m.pushName : 'Tanpa Nama'}
 	*🧬 Karakteristik:* ${randomSifat}
@@ -2018,6 +2724,38 @@ break;
 		// Mengirimkan pesan dengan mentions dan format yang lebih menarik
 		naze.sendMessage(m.chat, { text: pesanRespon, mentions: [target] }, { quoted: m });
 	}
+	break;
+	case 'rekeningcek': { 
+		let target = q ? q.replace(/@/g, '') : m.pushName;
+		let mataUang = ['IDR (Rupiah)', 'USD (Dollar)', 'EUR (Euro)', 'GBP (Poundsterling)', 'JPY (Yen)', 'CNY (Yuan)', 'INR (Rupee)', 'ZWD (Zimbabwe Dollar)', 'BTC (Bitcoin)', 'ETH (Ethereum)'];
+		let randomMataUang = mataUang[Math.floor(Math.random() * mataUang.length)];
+	
+		// Sistem probabilitas biar makin besar angka makin jarang muncul
+		let rand = Math.random();
+		let saldo;
+		if (rand < 0.75) saldo = Math.floor(Math.random() * 1_000_001); // 75% -> 0 - 1 Juta
+		else if (rand < 0.90) saldo = Math.floor(Math.random() * 999_000_001) + 1_000_000; // 15% -> 1 Juta - 1 Miliar
+		else if (rand < 0.99) saldo = Math.floor(Math.random() * 999_000_000_001) + 1_000_000_000; // 9% -> 1 Miliar - 1 Triliun
+		else saldo = Math.floor(Math.random() * 999_000_000_000_001) + 1_000_000_000_000; // 1% -> 1 Triliun - 1000 Triliun
+	
+		// Format angka dengan titik/koma sesuai mata uang
+		let saldoFormatted = randomMataUang.includes('IDR') || randomMataUang.includes('INR') ? saldo.toLocaleString('id-ID') : saldo.toLocaleString('en-US');
+	
+		// Status keuangan sesuai nominal saldo
+		let statusKeuangan;
+		if (saldo < 10_000) statusKeuangan = ['Miskin banget woy 🤣', 'Lagi krisis ekonomi wkwk', 'Cuma bisa beli permen 😭'][Math.floor(Math.random() * 3)];
+		else if (saldo < 1_000_000) statusKeuangan = ['Lumayan buat beli nasi padang 😋', 'Jangan boros bro! 🤑', 'Bisa buat traktir temen 🥳'][Math.floor(Math.random() * 3)];
+		else if (saldo < 1_000_000_000) statusKeuangan = ['Kaya tapi nggak banget 🤔', 'Bisa beli motor nih! 🏍️', 'Hampir sultan! 😏'][Math.floor(Math.random() * 3)];
+		else if (saldo < 1_000_000_000_000) statusKeuangan = ['Ini baru tajir melintir! 💰', 'Sultan kelas menengah! 🏦', 'Bisa beli rumah nih! 🏠'][Math.floor(Math.random() * 3)];
+		else statusKeuangan = ['SULTAN SEJAGAD! 🏆', 'Uangnya nggak abis-abis! 🤯', 'Orang kaya mah bebas! 😎'][Math.floor(Math.random() * 3)];
+	
+		let hasil = `🏦 *Cek Rekening Bank* 🏦\n\n` +
+					`👤 *Nama                   :* ${target}\n` +
+					`💰 *Jumlah Saldo  :* ${saldoFormatted} ${randomMataUang}\n\n` +
+					`📌 *Status Keuangan :* ${statusKeuangan}`;
+	
+		m.reply(hasil);
+	} 
 	break;
 	case 'kontolcek':    {
 		if (!m.isGroup) return m.reply(mess.group);
@@ -2401,6 +3139,7 @@ break;
 		}
 	}
 	break;
+		
 	case 'delete': case 'del': case 'd': {
 		if (!m.quoted) return m.reply('Reply pesan yang mau di delete')
 		if (!m.isGroup) return m.reply(mess.group)
@@ -2472,7 +3211,7 @@ break;
 			await naze.sendButtonMsg(m.chat, 'Mode Group', ucapanWaktu, 'Silahkan dipilih 🎋', null, buttonnya, m);
 		} else {
 			let anu = db.groups[m.chat]
-			m.reply(`${m.metadata.subject}\n- Anti Link : ${anu.antilink ? '✅' : '❌'}\n- Anti Link all : ${anu.antilinkall ? '✅' : '❌'}\n- Anti Virtex : ${anu.antivirtex ? '✅' : '❌'}\n- Anti Delete : ${anu.antidelete ? '✅' : '❌'}\n- Welcome : ${anu.welcome ? '✅' : '❌'}`)
+			m.reply(`${m.metadata.subject}\n- Anti Link : ${anu.antilink ? '✅' : '❌'}\n- Anti Link all : ${anu.antilinkall ? '✅' : '❌'}\n- Anti Virtex : ${anu.antivirtex ? '✅' : '❌'}\n- Anti Delete : ${anu.antidelete ? '✅' : '❌'}\n- Anti Upsw :${anu.antiupsw  ? '✅' : '❌'}\n- Only Admin : ${anu.onlyadmin ? '✅' : '❌'}\n- Welcome : ${anu.welcome ? '✅' : '❌'}`)
 		}
 	}
 	break
@@ -2520,6 +3259,21 @@ break;
 		}).catch((err) => m.reply('Gagal!'))
 	}
 	break
+	case 'onlyadmin': {
+		if (!m.isGroup) return m.reply('Perintah ini hanya bisa digunakan di grup!')
+	
+		// Definisi isAdmin dan isBotAdmin
+		const groupMetadata = m.isGroup ? await naze.groupMetadata(m.chat) : {};
+		const groupAdmins = groupMetadata.participants ? groupMetadata.participants.filter(v => v.admin).map(v => v.id) : [];
+		
+		if (!m.isAdmin) return m.reply('Hanya admin yang bisa mengubah pengaturan ini!')
+		if (!m.isBotAdmin) return m.reply('Bot harus menjadi admin untuk mengubah pengaturan ini!')
+	
+		let group = global.db.groups[m.chat]
+		group.onlyadmin = !group.onlyadmin
+		m.reply(`Fitur Only Admin berhasil ${group.onlyadmin ? '*diaktifkan.*\nSekarang bot hanya bisa digunakan oleh admin.' : '*dimatikan.*\nSekarang bot bisa digunakan oleh seluruh member.'}`)
+	}
+	break;
 	case 'promote': {
 		if (!m.isGroup) return m.reply(mess.group)
 		if (!m.isAdmin) return m.reply(mess.admin)
@@ -2676,1090 +3430,7 @@ ${pembuka2}\n`
 	}
 	break;
 	//==================================================================
-	//listsewa = 1
-	case 'listsewa': {
-		const bukajudul = '╔═════════〇';
-		const barisjudul = '╔═〇';
-		const tutupjudul = '╠═════════〇';
-		const barisfitur = '╠»';
-		const penutup = '╚═════════════════〇';
-	
-		m.reply ( `
-	${barisjudul} 🎫 *Daftar Harga Sewa* 🎫 
-	${penutup}
-	
-	${barisjudul} 📦 *Paket 1*
-	${tutupjudul}
-	${barisfitur} 💵 Rp. 5.000 / grup
-	${barisfitur} ⏳ Waktu: 7 Hari
-	${penutup}
-	
-	${barisjudul} 📦 *Paket 2*
-	${tutupjudul}
-	${barisfitur} 💵 Rp. 15.000 / grup
-	${barisfitur} ⏳ Waktu: 1 Bulan
-	${penutup}
-	
-	${barisjudul} 📦 *Paket 3*
-	${tutupjudul}
-	${barisfitur} 💵 Rp. 50.000 / grup
-	${barisfitur} ⏳ Waktu: PERMANEN
-	${penutup}
-	
-	Untuk informasi lebih lanjut,
-	silakan hubungi \`owner\`. Terima kasih!
-	`)}
-	break;
-	//==================================================================
-	// toolsmenu = 49
-	case 'brat':case 'bratsticker': case 'bratstiker':case 'bratstick': {
-		if (!text && (!m.quoted || !m.quoted.text)) return m.reply(`Kirim/reply pesan *${prefix + command}* Teksnya`)
-		try {
-			await naze.sendAsSticker(m.chat, 'https://brat.caliphdev.com/api/brat?text=' + (text || m.quoted.text), m, { packname: packname, author: author })
-			setLimit(m, db)
-		} catch (e) {
-			try {
-				await naze.sendMessage(m.chat, { image: { url: 'https://mannoffc-x.hf.space/brat?q=' + (text || m.quoted.text) }}, { quoted: m })
-			} catch (e) {
-				m.reply('Server Brat Sedang Offline!')
-			}
-		}
-	}
-	break
-	case 'bratvid': case 'bratvideo': {
-		if (!text && (!m.quoted || !m.quoted.text)) return m.reply(`Kirim/reply pesan *${prefix + command}* Teksnya`)
-		const teks = (m.quoted ? m.quoted.text : text).split(' ');
-		const tempDir = path.join(process.cwd(), 'database/sampah');
-		try {
-			const framePaths = [];
-			for (let i = 0; i < teks.length; i++) {
-				const currentText = teks.slice(0, i + 1).join(' ');
-				const res = await axios.get('https://brat.caliphdev.com/api/brat?text=' + encodeURIComponent(currentText), { responseType: 'arraybuffer' });
-				const framePath = path.join(tempDir, `${m.sender + i}.mp4`);
-				fs.writeFileSync(framePath, res.data);
-				framePaths.push(framePath);
-			}
-			const fileListPath = path.join(tempDir, `${m.sender}.txt`);
-			let fileListContent = '';
-			for (let i = 0; i < framePaths.length; i++) {
-				fileListContent += `file '${framePaths[i]}'\n`;
-				fileListContent += `duration 0.5\n`;
-			}
-			fileListContent += `file '${framePaths[framePaths.length - 1]}'\n`;
-			fileListContent += `duration 3\n`;
-			fs.writeFileSync(fileListPath, fileListContent);
-			const outputVideoPath = path.join(tempDir, `${m.sender}-output.mp4`);
-			execSync(`ffmpeg -y -f concat -safe 0 -i ${fileListPath} -vf 'fps=30' -c:v libx264 -preset veryfast -pix_fmt yuv420p -t 00:00:10 ${outputVideoPath}`);
-			naze.sendAsSticker(m.chat, outputVideoPath, m, { packname: packname, author: author })
-			framePaths.forEach((filePath) => fs.unlinkSync(filePath));
-			fs.unlinkSync(fileListPath);
-			fs.unlinkSync(outputVideoPath);
-			setLimit(m, db)
-		} catch (e) {
-			console.log(e)
-			m.reply('Terjadi Kesalahan Saat Memproses Permintaan!')
-		}
-	}
-	break
-	case 'brat2': case 'bratsticker2': case 'bratstiker2':case 'bratstick2':{
-		const { createCanvas, registerFont } = require('canvas');
-		const Jimp = require('jimp');
-	
-		async function BratGenerator(teks) {
-			let width = 2048;
-			let height = 2048;
-			let margin = 30;
-			let wordSpacing = 90;
-			let canvas = createCanvas(width, height);
-			let ctx = canvas.getContext('2d');
-	
-			// Latar belakang putih
-			ctx.fillStyle = 'white';
-			ctx.fillRect(2, 0, width, height);
-	
-			// Mendaftarkan font
-			registerFont('./lib/arialnarrow.ttf', { family: 'Narrow' });
-	
-			let fontSize = 480;
-			let lineHeightMultiplier = 1.2;
-			ctx.textAlign = 'left';
-			ctx.textBaseline = 'top';
-			ctx.fillStyle = 'black';
-			ctx.font = `${fontSize}px Narrow`;
-	
-			let words = teks.split(' ');
-			let lines = [];
-	
-			let rebuildLines = () => {
-				lines = [];
-				let currentLine = '';
-				for (let word of words) {
-					let testLine = currentLine ? `${currentLine} ${word}` : word;
-					let lineWidth =
-						ctx.measureText(testLine).width + (currentLine.split(' ').length - 1) * wordSpacing;
-					if (lineWidth < width - 2 * margin) {
-						currentLine = testLine;
-					} else {
-						lines.push(currentLine);
-						currentLine = word;
-					}
-				}
-				if (currentLine) {
-					lines.push(currentLine);
-				}
-			};
-	
-			rebuildLines();
-	
-			// Menyesuaikan ukuran font agar teks pas dalam canvas
-			while (lines.length * fontSize * lineHeightMultiplier > height - 2 * margin) {
-				fontSize -= 2;
-				ctx.font = `${fontSize}px Narrow`;
-				rebuildLines();
-			}
-	
-			let lineHeight = fontSize * lineHeightMultiplier;
-			let y = margin;
-	
-			for (let line of lines) {
-				let wordsInLine = line.split(' ');
-				let x = margin;
-				for (let word of wordsInLine) {
-					ctx.fillText(word, x, y);
-					x += ctx.measureText(word).width + wordSpacing;
-				}
-				y += lineHeight;
-			}
-	
-			let buffer = canvas.toBuffer('image/png');
-			let image = await Jimp.read(buffer);
-			image.blur(3);
-			let blurredBuffer = await image.getBufferAsync(Jimp.MIME_PNG);
-	
-			return naze.sendAsSticker(m.chat, blurredBuffer, m, { packname: "", author: "" });
-		}
-	
-		if (!text) return m.reply("Masukkan teks untuk stiker.\n\nContoh:\n.brat Atmin Ganteng");
-	
-		await BratGenerator(text);
-	}
-	break;
-	case 'bratvid2': case 'bratvideo2': {
-	const { createCanvas, registerFont } = require('canvas');
-	const Jimp = require('jimp');
-	const { execSync } = require('child_process');
-	const path = require('path');
-	const fs = require('fs');
-	if (!text) return m.reply("Masukkan teks untuk video stiker.\n\nContoh:\n.bratvideo Atmin Ganteng");
-	if (text.length > 40) return m.reply("Karakter terbatas, max 40 huruf!");
-	m.reply(mess.wait);
-	const words = text.split(" ");
-	const tempDir = path.join(process.cwd(), 'lib');
-	if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
-	const framePaths = [];
-
-	try {
-	for (let i = 0; i < words.length; i++) {
-	let width = 2048;
-	let height = 2048;
-	let margin = 20;
-	let wordSpacing = 50;
-	let canvas = createCanvas(width, height);
-	let ctx = canvas.getContext('2d');
-
-	// Latar belakang putih
-	ctx.fillStyle = 'white';
-	ctx.fillRect(0, 0, width, height);
-
-	// Mendaftarkan font
-	registerFont('./lib/arialnarrow.ttf', { family: 'Narrow' });
-
-	let fontSize = 680;
-	let lineHeightMultiplier = 1.3;
-	ctx.textAlign = 'left';
-	ctx.textBaseline = 'top';
-	ctx.fillStyle = 'black';
-	ctx.font = `${fontSize}px Narrow`;
-
-	let currentText = words.slice(0, i + 1).join(" ");
-	let lines = [];
-
-	let rebuildLines = () => {
-	lines = [];
-	let currentLine = '';
-	for (let word of currentText.split(' ')) {
-	let testLine = currentLine ? `${currentLine} ${word}` : word;
-	let lineWidth =
-	ctx.measureText(testLine).width + (currentLine.split(' ').length - 1) * wordSpacing;
-	if (lineWidth < width - 2 * margin) {
-	currentLine = testLine;
-	} else {
-	lines.push(currentLine);
-	currentLine = word;
-	}
-	}
-	if (currentLine) {
-	lines.push(currentLine);
-	}
-	};
-
-	rebuildLines();
-
-	while (lines.length * fontSize * lineHeightMultiplier > height - 2 * margin) {
-	fontSize -= 2;
-	ctx.font = `${fontSize}px Narrow`;
-	rebuildLines();
-	}
-
-	let lineHeight = fontSize * lineHeightMultiplier;
-	let y = margin;
-
-	for (let line of lines) {
-	let wordsInLine = line.split(' ');
-	let x = margin;
-	for (let word of wordsInLine) {
-	ctx.fillText(word, x, y);
-	x += ctx.measureText(word).width + wordSpacing;
-	}
-	y += lineHeight;
-	}
-
-	let buffer = canvas.toBuffer('image/png');
-	let image = await Jimp.read(buffer);
-	image.blur(3);
-	let blurredBuffer = await image.getBufferAsync(Jimp.MIME_PNG);
-	let framePath = path.join(tempDir, `frame${i}.png`);
-	fs.writeFileSync(framePath, blurredBuffer);
-	framePaths.push(framePath);
-	}
-
-	// Buat daftar file untuk FFmpeg
-	const fileListPath = path.join(tempDir, "filelist.txt");
-	let fileListContent = framePaths.map(frame => `file '${frame}'\nduration 0.7`).join("\n");
-	fileListContent += `\nfile '${framePaths[framePaths.length - 1]}'\nduration 2`;
-	fs.writeFileSync(fileListPath, fileListContent);
-
-	// Gabungkan gambar menjadi video
-	const outputVideoPath = path.join(tempDir, "output.mp4");
-	execSync(
-	`ffmpeg -y -f concat -safe 0 -i ${fileListPath} -vf "fps=30,format=yuv420p" -c:v libx264 -preset ultrafast ${outputVideoPath}`
-	);
-
-	// Kirim sebagai sticker video
-	await naze.sendAsSticker(m.chat, outputVideoPath, m, {
-	packname: global.packname,
-	author: global.author
-	});
-
-	// Bersihkan file sementara
-	framePaths.forEach(frame => fs.existsSync(frame) && fs.unlinkSync(frame));
-	if (fs.existsSync(fileListPath)) fs.unlinkSync(fileListPath);
-	if (fs.existsSync(outputVideoPath)) fs.unlinkSync(outputVideoPath);
-
-	} catch (e) {
-	console.error(e);
-	m.reply('Terjadi kesalahan dalam pembuatan video stiker.');
-	}
-	}
-	break;
-	case 'carbonify': case 'karbonify': {
-		if (!text && (!m.quoted || !m.quoted.text)) return m.reply(`Kirim/reply pesan *${prefix + command}* Teksnya`)
-		try {
-			await naze.sendAsSticker(m.chat, 'https://api.siputzx.my.id/api/m/carbonify?input=' + (text || m.quoted.text), m, { packname: packname, author: author })
-			setLimit(m, db)
-		} catch (error) {
-			console.error(error);
-			m.reply('Terjadi kesalahan saat mengubah teks menjadi gambar karbonified.');
-		}
-	}
-	break	
-	case 'cuaca': case 'weather': {
-		if (!text) {
-			return m.reply('Silakan masukkan nama kota yang ingin Anda cek cuacanya.');
-		}
-	
-		try {
-			let wdata = await axios.get(
-				`https://api.openweathermap.org/data/2.5/weather?q=${text}&units=metric&appid=060a6bcfa19809c2cd4d97a212b19273&lang=id`
-			);
-	
-			// Deskripsi lengkap cuaca
-			const cuacaUtama = wdata.data.weather[0].main;
-			const deskripsiCuaca = wdata.data.weather[0].description;
-			const suhu = wdata.data.main.temp;
-			const suhuMin = wdata.data.main.temp_min;
-			const suhuMax = wdata.data.main.temp_max;
-			const terasaSeperti = wdata.data.main.feels_like;
-			const tekananUdara = wdata.data.main.pressure;
-			const tekananLaut = wdata.data.main.sea_level || 'N/A'; // Tekanan air laut (jika tersedia)
-			const tekananTanah = wdata.data.main.grnd_level || 'N/A'; // Tekanan permukaan tanah (jika tersedia)
-			const kelembaban = wdata.data.main.humidity;
-			const kecepatanAngin = wdata.data.wind.speed;
-			const arahAngin = wdata.data.wind.deg;
-			const jarakPandang = wdata.data.visibility / 1000; // Mengubah ke kilometer
-			const tutupanAwan = wdata.data.clouds.all;
-			const volumeHujan = (wdata.data.rain && wdata.data.rain['1h']) || 0; // Volume hujan (jika tersedia)
-			const lintang = wdata.data.coord.lat;
-			const bujur = wdata.data.coord.lon;
-			const negara = wdata.data.sys.country;
-			
-			// Mendapatkan timezone dari respons API
-			const zonaWaktu = wdata.data.timezone; // Mengambil data timezone dari API (dalam detik)
-			const waktuLocal = new Date().getTimezoneOffset() * 60; // Selisih waktu sistem lokal dengan UTC (dalam detik)
-			
-			// Menghitung offset untuk zona waktu kota
-			const offset = zonaWaktu - waktuLocal; // Selisih waktu dari UTC (dalam detik)
-	
-			// Konversi waktu matahari terbit dan terbenam dari UTC ke waktu lokal
-			const sunrise = new Date((wdata.data.sys.sunrise + offset) * 1000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
-			const sunset = new Date((wdata.data.sys.sunset + offset) * 1000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
-	
-			// Menyusun pesan cuaca
-let textw = `*Informasi Cuaca untuk Kota ${text.charAt(0).toUpperCase() + text.slice(1)}*\n\n`;
-textw += `🌤️ *Cuaca Utama*         : ${cuacaUtama}\n`;
-textw += `📖 *Deskripsi*                 : ${deskripsiCuaca}\n`;
-textw += `🌡️ *Suhu Rata-rata*     : ${suhu} °C\n`;
-textw += `🔻 *Suhu Minimum*      : ${suhuMin} °C\n`;
-textw += `🔺 *Suhu Maksimum*   : ${suhuMax} °C\n`;
-textw += `🔥 *Terasa Seperti*       : ${terasaSeperti} °C\n`;
-textw += `🌬️ *Kecepatan Angin*  : ${kecepatanAngin} m/s\n`;
-textw += `🧭 *Arah Angin*              : ${arahAngin}°\n`;
-textw += `💧 *Kelembaban*           : ${kelembaban}%\n`;
-textw += `🎈 *Tekanan Udara*      : ${tekananUdara} hPa\n`;
-textw += `🌊 *Tekanan Air Laut*  : ${tekananLaut} hPa\n`;
-textw += `🌍 *Tekanan Tanah*     : ${tekananTanah} hPa\n`;
-textw += `🌫️ *Jarak Pandang*      : ${jarakPandang} km\n`;
-textw += `☁️ *Tutup Awan*            : ${tutupanAwan}%\n`;
-textw += `🌧️ *Volume Hujan*        : ${volumeHujan} mm/h\n\n`;
-textw += `📍 *Koordinat*  \n`;
-textw += `   - Lintang : ${lintang}\n`;
-textw += `   - Bujur      : ${bujur}\n\n`;
-textw += `🌅 *Matahari Terbit*          : ${sunrise}\n`;
-textw += `🌇 *Matahari Terbenam* : ${sunset}\n\n`;
-textw += `🏳️ *Negara*           : ${negara}\n`;
-
-			// Mengirimkan pesan dengan format yang lebih menarik
-			naze.sendMessage(m.chat, { text: textw }, { quoted: m });
-	
-		} catch (error) {
-			m.reply('Maaf, terjadi kesalahan saat mengambil data cuaca. Pastikan nama kota yang Anda masukkan sudah benar.');
-		}
-	}
-	break;
-	case 'emojimix': {
-		if (!text) return m.reply(`Example: ${prefix + command} 😅+🤔`)
-		let [emoji1, emoji2] = text.split`+`
-		if (!emoji1 && !emoji2) return m.reply(`Example: ${prefix + command} 😅+🤔`)
-		try {
-			let anu = await axios.get(`https://tenor.googleapis.com/v2/featured?key=AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ&contentfilter=high&media_filter=png_transparent&component=proactive&collection=emoji_kitchen_v5&q=${encodeURIComponent(emoji1)}_${encodeURIComponent(emoji2)}`)
-			if (anu.data.results.length < 1) return m.reply(`Mix Emoji ${text} Tidak Ditemukan!`)
-			for (let res of anu.data.results) {
-				await naze.sendAsSticker(m.chat, res.url, m, { packname: packname, author: author })
-			}
-		} catch (e) {
-			m.reply('Gagal Mix Emoji!')
-		}
-	}
-	break
-	case 'get': case 'fetch':  {
-		if (!/^https?:\/\//.test(text)) return m.reply('Awali dengan http:// atau https://');
-		const { data } = await axios.get('https://api.ipify.org?format=json')
-		try {
-			const res = await axios.get(isUrl(text) ? isUrl(text)[0] : text)
-			if (!/json|html|plain/.test(res.headers['content-type'])) {
-				await m.reply(text)
-			} else {
-				m.reply(util.format(res.data).replace(new RegExp(data.ip.replace(/\./g, '\\.'), 'g'), 'xxx-xxx-xxx-xxx'))
-			}
-		} catch (e) {
-			m.reply(util.format(e).replace(new RegExp(data.ip.replace(/\./g, '\\.'), 'g'), 'xxx-xxx-xxx-xxx'))
-		}
-	}
-	break
-	case 'getexif': {
-		if (!m.quoted) return m.reply(`Reply sticker\nDengan caption ${prefix + command}`)
-		if (!/sticker|webp/.test(quoted.type)) return m.reply(`Reply sticker\nDengan caption ${prefix + command}`)
-		const { Image } = require('node-webpmux')
-		const img = new Image()
-		await img.load(await m.quoted.download())
-		m.reply(util.format(JSON.parse(img.exif.slice(22).toString())))
-	}
-	break
-	case 'gitclone': case 'git':  {
-		if (!args[0]) return m.reply(`Example: ${prefix + command} https://github.com/nazedev/hitori`)
-		if (!isUrl(args[0]) && !args[0].includes('github.com')) return m.reply('Gunakan Url Github!')
-		let [, user, repo] = args[0].match(/(?:https|git)(?::\/\/|@)github\.com[\/:]([^\/:]+)\/(.+)/i) || []
-		try {
-			naze.sendMessage(m.chat, { document: { url: `https://api.github.com/repos/${user}/${repo}/zipball` }, fileName: repo + '.zip', mimetype: 'application/zip' }, { quoted: m }).catch((e) => m.reply(mess.error))
-		} catch (e) {
-			m.reply('Gagal!')
-		}
-	}
-	break
-	case 'hd':case 'tohd': case 'remini':  {
-		if (/image/.test(mime)) {
-			const { remini } = require('./lib/remini');
-			let media = await (m.quoted ? m.quoted.download() : m.download());
-			
-			// Proses HD pertama
-			try {
-				let enhanced1 = await remini(media, 'enhance');
-				m.reply('_⏳ Proses HD..._');
-				
-				// Proses HD kedua
-				let enhanced2 = await remini(enhanced1, 'enhance');
-				
-				// Kirim hasil HD dua kali
-				await naze.sendMessage(m.chat, { image: enhanced2, caption: '_gambar sudah di HD kan_' }, { quoted: m });
-			} catch (e) {
-				m.reply(`❌ Gagal meningkatkan kualitas gambar: ${e.message}`);
-			}
-		} else {
-			m.reply(`Kirim/Reply gambar dengan format\nExample: ${prefix + command}`);
-		}
-	}
-	break;
-	case 'kelompokacak': {
-		if (!m.isGroup) return m.reply('Perintah ini hanya bisa digunakan di dalam grup!');
-		
-		let jumlahPerKelompok = parseInt(args[0]);
-		if (isNaN(jumlahPerKelompok)) return m.reply('Harap masukkan jumlah anggota per kelompok yang benar! Contoh: \n*kelompokacak 5*');
-	
-		// Ambil semua ID anggota grup
-		let participants = m.metadata.participants.map(a => a.id);
-		let totalUser = participants.length;
-	
-		// Acak urutan anggota
-		participants = participants.sort(() => Math.random() - 0.5);
-	
-		let hasilKelompok = [];
-		for (let i = 0; i < totalUser; i += jumlahPerKelompok) {
-			hasilKelompok.push(participants.slice(i, i + jumlahPerKelompok));
-		}
-	
-		// Gabungkan sisa anggota ke kelompok terakhir jika ada
-		if (hasilKelompok[hasilKelompok.length - 1].length < jumlahPerKelompok) {
-			let sisa = hasilKelompok.pop();
-			hasilKelompok[hasilKelompok.length - 1] = hasilKelompok[hasilKelompok.length - 1].concat(sisa);
-		}
-	
-		// Format hasil output kelompok
-		let output = '';
-		hasilKelompok.forEach((kelompok, index) => {
-			output += `*Kelompok ${index + 1}*\n`;
-			kelompok.forEach(user => {
-				output += `@${user.split('@')[0]}\n`;
-			});
-			output += '\n';
-		});
-	
-		// Kirim hasil dengan mention ke semua peserta
-		naze.sendMessage(m.chat, { text: output, mentions: participants }, { quoted: m });
-	}
-	break;
-	case 'konversi': {
-		// Peta simbol mata uang
-		const currencySymbols = {
-			USD: '$',
-			IDR: 'Rp.',
-			EUR: '€',
-			GBP: '£',
-			JPY: '¥',
-			AUD: 'A$',
-			CAD: 'C$',
-			SGD: 'S$',
-			MYR: 'RM',
-			// Tambahkan simbol lain sesuai kebutuhan
-		};
-	
-		// Fungsi untuk menambahkan pemisah ribuan
-		function formatNumber(number) {
-			return parseFloat(number).toLocaleString(); // Menggunakan format lokal default untuk pemisah ribuan
-		}
-	
-		// Ambil argumen dari pengguna, misalnya: 'konversi 100 USD ke IDR'
-		let args = m.text.split(' ');
-		
-		if (args.length < 4) {
-			return m.reply('Format salah. Contoh: konversi 100 USD ke IDR');
-		}
-		
-		let amount = parseFloat(args[1]); // Jumlah uang yang akan dikonversi
-		let fromCurrency = args[2].toUpperCase(); // Mata uang asal
-		let toCurrency = args[4].toUpperCase(); // Mata uang tujuan
-		
-		if (isNaN(amount)) {
-			return m.reply('Jumlah uang tidak valid. Harap masukkan angka yang benar.');
-		}
-	
-		// API URL untuk mendapatkan nilai tukar
-		let apiUrl = `https://api.exchangerate-api.com/v4/latest/${fromCurrency}`;
-	
-		// Panggil API nilai tukar mata uang
-		try {
-			let fetch = require('node-fetch');
-			let response = await fetch(apiUrl);
-			let data = await response.json();
-	
-			if (!data.rates[toCurrency]) {
-				return m.reply(`Mata uang ${toCurrency} tidak valid atau tidak ditemukan.`);
-			}
-	
-			let rate = data.rates[toCurrency];
-			let convertedAmount = (amount * rate).toFixed(2); // Hitung hasil konversi
-	
-			// Ambil simbol mata uang jika ada, jika tidak tampilkan kode mata uang
-			let fromSymbol = currencySymbols[fromCurrency] || fromCurrency;
-			let toSymbol = currencySymbols[toCurrency] || toCurrency;
-	
-			// Format angka dengan pemisah ribuan
-			let formattedAmount = formatNumber(amount);
-			let formattedConvertedAmount = formatNumber(convertedAmount);
-	
-			// Kirim hasil konversi dengan simbol mata uang
-			m.reply(`💸 ${fromSymbol}${formattedAmount} ${fromCurrency} = ${toSymbol}${formattedConvertedAmount} ${toCurrency}\nNilai tukar: 1 ${fromCurrency} = ${rate.toLocaleString()} ${toCurrency}`);
-		} catch (error) {
-			m.reply('Maaf, terjadi kesalahan saat melakukan konversi. Coba lagi nanti.');
-		}
-	}
-	break;
-	case 'konvert': {
-		const input = args.join(' ').toLowerCase(); // Menggabungkan argumen input dari pengguna
-		
-		// Kurs konversi untuk setiap cent ke IDR
-		const conversionRates = {
-			auc: { rate: 106.4, flag: '🇦🇺', description: 'Australian Cent' },
-			cac: { rate: 102.5, flag: '🇨🇦', description: 'Canadian Cent' },
-			chc: { rate: 104.0, flag: '🇨🇳', description: 'Chinese Cent' },
-			euc: { rate: 150.0, flag: '🇪🇺', description: 'European Cent' },
-			gbc: { rate: 130.0, flag: '🇬🇧', description: 'British Cent' },
-			usc: { rate: 151.7, flag: '🇺🇸', description: 'US Cent' },
-		};
-	
-		// Jika input mengonversi dari cent ke IDR
-		if (input.includes('cent ke idr')) {
-			const parts = input.split(' '); // Memisahkan input berdasarkan spasi
-			const amount = parseFloat(parts[0]); // Mengambil jumlah dari input
-	
-			if (isNaN(amount)) return m.reply('Masukkan jumlah cent yang valid.');
-	
-			// Konversi semua cent ke IDR
-			let resultMessage = `💵 *Konversi dari ${amount} Cent ke IDR :*\n\n`;
-	
-			for (const [code, { rate, flag, description }] of Object.entries(conversionRates)) {
-				const idrValue = amount * rate;
-				resultMessage += `${flag} ${code.toUpperCase()} (${description}):\n ${amount} ${code.toUpperCase()} = Rp. ${idrValue.toLocaleString('id-ID')}\n\n`;
-			}
-	
-			m.reply(resultMessage);
-	
-		// Jika input mengonversi dari IDR ke cent
-		} else if (input.includes('idr ke cent')) {
-			const parts = input.split(' '); // Memisahkan input berdasarkan spasi
-			const idrValue = parseFloat(parts[0].replace(/\./g, '')); // Mengambil nilai IDR dan menghapus titik
-	
-			if (isNaN(idrValue)) return m.reply('Masukkan jumlah IDR yang valid.');
-	
-			// Menampilkan hasil konversi dari IDR ke semua mata uang cent
-			let resultMessage = `💵 *Konversi dari Rp. ${idrValue.toLocaleString('id-ID')} ke Cent :*\n\n`;
-	
-			for (const [code, { rate, flag, description }] of Object.entries(conversionRates)) {
-				const centValue = idrValue / rate;
-				resultMessage += `${flag} ${code.toUpperCase()} (${description}): \n Rp. ${idrValue} = ${centValue.toFixed(2)} ${code.toUpperCase()}\n\n`;
-			}
-	
-			m.reply(resultMessage);
-	
-		} else {
-			m.reply('Format yang salah. Gunakan format:\n- konvert <jumlah> cent ke idr\n- konvert <jumlah> idr ke cent');
-		}
-	}
-	break;
-	case 'profitkalkulator': {
-		if (!text) return m.reply(`Example: ${prefix + command} 200000 5`);
-		let args = text.replace(/\./g, '').replace(/,/g, '').split(' ');
-		if (args.length !== 2 || isNaN(args[0]) || isNaN(args[1])) {
-		return m.reply(`Format salah! Gunakan: ${prefix + command} (jumlah modal) (persentase keuntungan)\nContoh: ${prefix + command} 200000 5`);
-		}
-		
-		let modalAwal = parseFloat(args[0]);
-		let persenKeuntungan = parseFloat(args[1]);
-	   
-		let hasil = `\n*Modal awal:* Rp ${modalAwal.toLocaleString('id-ID')}\n`;
-		hasil += `*Keuntungan per hari:* ${persenKeuntungan}%\n\n`;
-	   
-		for (let i = 1; i <= 30; i++) {
-		let keuntungan = modalAwal * (persenKeuntungan / 100);
-		let modalAkhir = modalAwal + keuntungan;
-		hasil += `- *Hari ke-${i}*\n Modal awal: Rp ${modalAwal.toLocaleString('id-ID')}\n Modal akhir: Rp ${modalAkhir.toLocaleString('id-ID')}\n\n`;
-		modalAwal = modalAkhir;
-		}
-		
-		m.reply(hasil);
-	   }
-	   break;
-	case 'qc': case 'quote': case 'fakechat': {
-		// Cek apakah ada teks yang di-reply atau teks langsung dari pengguna
-		let textToQuote = '';
-		let name = ''; // Variabel untuk menyimpan nama yang akan digunakan
-		let senderId = m.sender; // Default menggunakan ID pengirim perintah
-
-		if (m.quoted && m.quoted.text) {
-			textToQuote = m.quoted.text; // Mengambil teks dari pesan yang di-reply
-			senderId = m.quoted.sender; // Menggunakan ID pengirim pesan yang di-reply
-			name = m.quoted.pushName || '🗿☕'; // Menggunakan nama dari pesan yang di-reply atau fallback ke string kosong
-		} else if (text) {
-			textToQuote = text; // Menggunakan teks yang diberikan langsung
-			name = m.pushName; // Menggunakan nama pengirim perintah
-		} else {
-			return m.reply(`Kirim/reply pesan *${prefix + command}* Teksnya`);
-		}
-
-		try {
-			// Mengambil foto profil user yang mengirim pesan yang di-reply atau pengirim perintah
-			let ppnya = await naze.profilePictureUrl(senderId, 'image').catch(() => 'https://i.pinimg.com/564x/8a/e9/e9/8ae9e92fa4e69967aa61bf2bda967b7b.jpg');
-
-			// Menghasilkan stiker dari teks
-			let res = await quotedLyo(textToQuote, name, ppnya);
-			await naze.sendAsSticker(m.chat, Buffer.from(res.result.image, 'base64'), m, { packname: packname, author: author });
-		} catch (e) {
-			m.reply('Server Create Sedang Offline!');
-		}
-	}
-	break;
-	case 'readmore': {
-		let teks1 = text.split`|`[0] ? text.split`|`[0] : ''
-		let teks2 = text.split`|`[1] ? text.split`|`[1] : ''
-		m.reply(teks1 + readmore + teks2)
-	}
-	break
-	case 'shorturl': case 'tinyurl':  case 'shortlink': {
-		if (!text || !isUrl(text)) return m.reply(`Example: ${prefix + command} https://github.com/nazedev/hitori`)
-		try {
-			let anu = await axios.get('https://tinyurl.com/api-create.php?url=' + text)
-			m.reply('Url : ' + anu.data)
-		} catch (e) {
-			m.reply('Gagal!')
-		}
-	}
-	break
-	case 'statistikdata': {
-		if (!args.length) return m.reply("Harap masukkan nilai data, contoh: statistikdata 23 45 65 43 33");
-	
-		let data = args.map(Number);
-		if (data.some(isNaN)) return m.reply("Semua nilai harus berupa angka.");
-	
-		// 1. Rata-rata (mean)
-		let total = data.reduce((sum, value) => sum + value, 0);
-		let mean = total / data.length;
-	
-		// 2. Median
-		let sorted = [...data].sort((a, b) => a - b);
-		let middle = Math.floor(data.length / 2);
-		let median = data.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
-	
-		// 3. Modus
-		let frequency = {};
-		let maxFreq = 0;
-		let mode = [];
-		for (let num of data) {
-			frequency[num] = (frequency[num] || 0) + 1;
-			if (frequency[num] > maxFreq) {
-				maxFreq = frequency[num];
-				mode = [num];
-			} else if (frequency[num] === maxFreq) {
-				mode.push(num);
-			}
-		}
-		mode = [...new Set(mode)]; // Remove duplicates
-	
-		// 4. Range
-		let range = Math.max(...data) - Math.min(...data);
-	
-		// 5. Nilai tertinggi dan terendah
-		let max = Math.max(...data);
-		let min = Math.min(...data);
-	
-		// 6. Standar Deviasi
-		let varianceSum = data.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0);
-		let variance = varianceSum / data.length;
-		let stdDev = Math.sqrt(variance);
-	
-		// Menyusun output perhitungan
-		let output = `
-*Data yang dimasukkan:* ${data.join(", ")}
-
-1. Rata-rata (Mean): ${mean.toFixed(2)}
-	\[Rata-rata = ( ${data.join(" + ")} ) / ${data.length} = ${total} / ${data.length} = ${mean.toFixed(2)}\]
-
-2. Median: ${median.toFixed(2)}
-	\[Median = ${sorted.length % 2 === 0 ? `( ${sorted[middle - 1]} + ${sorted[middle]} ) / 2 = ${median.toFixed(2)}` : `${sorted[middle]} = ${median.toFixed(2)}`}\]
-
-3. Modus: ${mode.length > 0 ? mode.join(", ") : "Tidak ada"}
-	${mode.length > 0 ? `Modus adalah angka yang paling sering muncul: ${mode.join(", ")}` : `Tidak ada modus karena semua angka muncul sama rata.`}
-
-4. Range: ${range}
-	\[Range = ${max} - ${min} = ${range}\]
-
-5. Nilai Tertinggi: ${max}
-	Nilai tertinggi adalah ${max}.
-
-6. Nilai Terendah: ${min}
-	Nilai terendah adalah ${min}.
-
-*Langkah-langkah perhitungan Standar Deviasi:*
-
-1. Hitung rata-rata (mean): 
-	\[Mean = ( ${data.join(" + ")} ) / ${data.length} = ${mean.toFixed(2)}\]
-
-2. Kurangkan setiap nilai dengan rata-rata, lalu kuadratkan hasilnya:
-${
-		data.map(value => `   (${value} - ${mean.toFixed(2)})² = ${(Math.pow(value - mean, 2)).toFixed(2)}`).join("\n")
-	}
-
-3. Jumlahkan semua hasil kuadrat:
-	\[Jumlah = ${varianceSum.toFixed(2)}\]
-
-4. Bagi hasil jumlah kuadrat dengan jumlah data:
-	\[Variance = ${varianceSum.toFixed(2)} / ${data.length} = ${variance.toFixed(2)}\]
-
-5. Ambil akar kuadrat dari variance:
-	\[Standar Deviasi = √${variance.toFixed(2)} = ${stdDev.toFixed(2)}\]
-
-*Standar Deviasi (σ):* ${stdDev.toFixed(2)}
-	`;
-	
-		m.reply(output);
-	}
-	break;
-	case 'smeme': case 'stickmeme': case 'stikmeme': case 'stickermeme': case 'stikermeme': {
-		try {
-			if (!/image|webp/.test(mime)) return m.reply(`Kirim/reply image/sticker\nDengan caption ${prefix + command} atas|bawah`)
-			if (!text) return m.reply(`Kirim/reply image/sticker dengan caption ${prefix + command} atas|bawah`)
-			m.reply(mess.wait)
-			let atas = text.split`|`[0] ? text.split`|`[0] : '-'
-			let bawah = text.split`|`[1] ? text.split`|`[1] : '-'
-			let media = await (m.quoted ? m.quoted.download() : m.download())
-			let mem = await UguuSe(media)
-			let smeme = `https://api.memegen.link/images/custom/${encodeURIComponent(atas)}/${encodeURIComponent(bawah)}.png?background=${mem.url}`
-			await naze.sendAsSticker(m.chat, smeme, m, { packname: packname, author: author })
-		} catch (e) {
-			m.reply('Server Meme Sedang Offline!')
-		}
-	}
-	break
-	case 'ssweb': case 'ss':  {
-		if (!text) return m.reply(`Example: ${prefix + command} https://github.com/nazedev/naze-md`)
-		try {
-			if (!text.startsWith('http')) {
-				let buf = 'https://image.thum.io/get/width/1900/crop/1000/fullpage/https://' + q;
-				await naze.sendMessage(m.chat, { image: { url: buf }, caption: 'Done' }, { quoted: m })
-			} else {
-				let buf = 'https://image.thum.io/get/width/1900/crop/1000/fullpage/' + q;
-				await naze.sendMessage(m.chat, { image: { url: buf }, caption: 'Done' }, { quoted: m })
-			}
-		} catch (e) {
-			m.reply('Server SS web Sedang Offline!')
-		}
-	}
-	break
-	case 'stele': case 'stickertelegram': case 'stickertele': case 'sticktele': {
-		console.log(`[LOG] Perintah ${command} diterima dengan teks:`, text);
-	
-		if (!text) return m.reply(`Format salah!
-		Untuk mengirim stiker tertentu, gunakan perintah:
-		\`${prefix + command} (jumlah stiker) (nama pack sticker)\`
-		
-		Atau untuk mengirim semua stiker, gunakan perintah:
-		\`${prefix + command} all (nama pack sticker)\``);
-	
-		let [limit, ...stickerName] = text.split(' ');
-		stickerName = stickerName.join(' ');  // Menyatukan kembali nama pack sticker
-	
-		if (!stickerName) {
-			console.log(`[LOG] Nama pack sticker kosong.`);
-			return m.reply('Harap masukkan nama pack stiker atau URL yang valid.');
-		}
-	
-		// Cek apakah input adalah URL
-		if (stickerName.includes('https://t.me/addstickers/')) {
-			const packNameFromUrl = stickerName.split('https://t.me/addstickers/')[1];
-			if (!packNameFromUrl) {
-				console.log(`[LOG] URL sticker tidak valid.`);
-				return m.reply('URL stiker tidak valid. Harap masukkan URL yang benar.');
-			}
-	
-			stickerName = packNameFromUrl;  // Mengambil nama pack dari URL
-			console.log(`[LOG] Nama pack diambil dari URL:`, stickerName);
-		}
-	
-		try {
-			console.log(`[LOG] Mengambil data stiker dari API untuk query: ${stickerName}`);
-	
-			const res = await fetch(`https://api.siputzx.my.id/api/d/telegramsticker?query=${stickerName}`);
-			const result = await res.json();
-	
-			if (!result || !Array.isArray(result.stickers)) {
-				console.log(`[LOG] API response tidak valid atau tidak berbentuk array.`);
-				return m.reply('Gagal mengambil stiker. Mungkin nama pack tidak ditemukan atau terjadi masalah dengan API.');
-			}
-	
-			const stickerCount = result.stickers.length;
-			console.log(`[LOG] Ditemukan ${stickerCount} stiker untuk pack: ${stickerName}`);
-	
-			if (stickerCount === 0) {
-				return m.reply('Tidak ditemukan stiker dengan query yang diberikan.');
-			}
-	
-			let stickersToSend = limit.toLowerCase() === 'all' ? result.stickers : result.stickers.slice(0, parseInt(limit) || 1);
-			console.log(`[LOG] Akan mengirim ${stickersToSend.length} stiker dari total ${stickerCount}.`);
-	
-			await m.reply(`Sedang mengirim ${stickersToSend.length} dari ${stickerCount} stiker. Proses ini membutuhkan waktu.`);
-	
-			for (let sticker of stickersToSend) {
-				const fileUrl = sticker.fileUrl;
-				console.log(`[LOG] Mengirim stiker: ${fileUrl}`);
-				await naze.sendMessage(m.chat, { sticker: { url: fileUrl } });
-			}
-	
-			m.reply(`Berhasil mengirim ${stickersToSend.length} dari ${stickerCount} stiker yang mulia. Semoga berkenan.😊`);
-	
-			setLimit(m, db);
-			console.log(`[LOG] Proses selesai, limit dikurangi.`);
-		} catch (error) {
-			console.error(`[ERROR] Terjadi kesalahan saat mengambil stiker:`, error);
-			m.reply('Terjadi kesalahan saat mengambil stiker.');
-		}
-	}
-	break;
-	case 'stele1': {
-		if (!args[0]) return m.reply(`Format salah!
-	Gunakan perintah:
-	\`${prefix}stele1 (nama pack sticker Telegram atau URL)\``);
-	
-		let link = args[0];
-		if (!link.includes('t.me/addstickers/')) return m.reply(`URL yang Anda masukkan salah! Harap masukkan URL dengan benar.`);
-	
-		m.reply('Sebentar yang mulia, hamba sedang mengambil daftar stiker...');
-	
-		try {
-			let stickerPackName = link.split('addstickers/')[1];
-			console.log(`[INFO] Mengambil sticker pack: ${stickerPackName}`);
-	
-			let response = await fetch(`https://api.telegram.org/bot8076926331:AAF250aEaHEgyHQ0URzV6dJRcAbMwsePCdc/getStickerSet?name=${stickerPackName}`);
-			let result = await response.json();
-	
-			if (!result.ok || !result.result.stickers) {
-				console.error(`[ERROR] Gagal mendapatkan stiker dari pack: ${stickerPackName}`);
-				return m.reply('Hamba gagal mendapatkan stiker dari pack tersebut.');
-			}
-	
-			let stickers = result.result.stickers.filter(sticker => sticker.is_animated !== true);
-			let totalStickers = stickers.length;
-			console.log(`[INFO] Ditemukan ${totalStickers} stiker dalam pack ${stickerPackName}`);
-	
-			if (totalStickers === 0) {
-				return m.reply('Hamba tidak menemukan stiker dalam pack tersebut.');
-			}
-	
-			m.reply(`Hamba telah menemukan ${totalStickers} stiker yang mulia. Hamba akan mengirimkan satu per satu...`);
-	
-			for (let i = 0; i < stickers.length; i++) {
-				let fileId = stickers[i].file_id;
-				
-				try {
-					let fileResponse = await fetch(`https://api.telegram.org/bot8076926331:AAF250aEaHEgyHQ0URzV6dJRcAbMwsePCdc/getFile?file_id=${fileId}`);
-					let fileData = await fileResponse.json();
-	
-					if (!fileData.ok) {
-						console.error(`[ERROR] Gagal mendapatkan file_path untuk stiker ${i + 1}`);
-						continue;
-					}
-	
-					let filePath = fileData.result.file_path;
-					let stickerUrl = `https://api.telegram.org/file/bot8076926331:AAF250aEaHEgyHQ0URzV6dJRcAbMwsePCdc/${filePath}`;
-	
-					console.log(`[INFO] Mengunduh stiker ${i + 1}/${totalStickers}: ${stickerUrl}`);
-	
-					let stickerFilePath = `./temp/sticker_${i}.webp`;
-					let response = await axios({ url: stickerUrl, responseType: 'arraybuffer' });
-					fs.writeFileSync(stickerFilePath, Buffer.from(response.data));
-	
-					// Konversi ke WebP jika formatnya bukan webp
-					let convertedStickerPath = `./temp/sticker_${i}_converted.webp`;
-					await new Promise((resolve, reject) => {
-						exec(`ffmpeg -i ${stickerFilePath} -vf scale=512:512 ${convertedStickerPath}`, (error) => {
-							if (error) {
-								console.error(`[ERROR] Gagal mengonversi stiker ${i + 1}: ${error.message}`);
-								reject(error);
-							} else {
-								resolve();
-							}
-						});
-					});
-	
-					console.log(`[INFO] Mengirim stiker ${i + 1}/${totalStickers}`);
-					await naze.sendMessage(m.chat, { sticker: fs.readFileSync(convertedStickerPath) });
-	
-					// Hapus file setelah dikirim untuk menghemat ruang
-					fs.unlinkSync(stickerFilePath);
-					fs.unlinkSync(convertedStickerPath);
-	
-					await new Promise(resolve => setTimeout(resolve, 100)); // Jeda 100ms
-				} catch (sendError) {
-					console.error(`[ERROR] Gagal mengirim stiker ${i + 1}: ${sendError.message}`);
-					m.reply(`⚠️ Gagal mengirim stiker ke-${i + 1}. Lanjut mengirim yang lain...`);
-				}
-			}
-	
-			m.reply('Semua stiker telah dikirim yang mulia! Semoga berkenan.😊');
-		} catch (error) {
-			console.error(`[ERROR] Terjadi kesalahan umum: ${error.message}`);
-			m.reply(`Maaf yang mulia, terjadi kesalahan saat mengambil stiker.\n\n🚨 Error: ${error.message}`);
-		}
-	}
-	break;
-	case 'sticker': case 'stiker': case 's': case 'stickergif': case 'stikergif': case 'sgif': {
-		if (!/image|video|sticker/.test(quoted.type)) return m.reply(`Kirim/reply gambar/video/gif dengan caption ${prefix + command}\nDurasi Image/Video/Gif 1-9 Detik`)
-		let media = await (m.quoted ? m.quoted.download() : m.download())
-		if (/image|webp/.test(mime)) {
-			m.reply(mess.wait)
-			if (text == 'meta') {
-				await naze.sendAsSticker(m.chat, media, m, { packname: packname, author: author, isAvatar: 1 })
-			} else {
-				await naze.sendAsSticker(m.chat, media, m, { packname: packname, author: author })
-			}
-		} else if (/video/.test(mime)) {
-			if ((quoted.msg || quoted).seconds > 11) return m.reply('Maksimal 10 detik!')
-			m.reply(mess.wait)
-			await naze.sendAsSticker(m.chat, media, m, { packname: packname, author: author })
-		} else {
-			m.reply(`Kirim/reply gambar/video/gif dengan caption ${prefix + command}\nDurasi Image/Video/Gif 1-9 Detik`)
-		}
-	}
-	break
-	case 'stickercrop':case 'scrop':  {
-		if (!/image|video|sticker/.test(quoted.type)) return m.reply(`Kirim/reply gambar/video/gif dengan caption ${prefix + command}\nDurasi Image/Video/Gif 1-9 Detik`);
-	
-		let media = await (m.quoted ? m.quoted.download() : m.download());
-		const mediaPath = path.join(__dirname, 'data', `media.${mime.split('/')[1]}`);
-		fs.writeFileSync(mediaPath, media);
-	
-		// Function to check aspect ratio
-		const checkAspectRatio = async (mediaPath) => {
-			let metadata = await sharp(mediaPath).metadata();
-			return metadata.width / metadata.height;
-		};
-	
-		// Function to crop image into 1:1 aspect ratio
-		const cropImage = async (mediaPath, output) => {
-			let metadata = await sharp(mediaPath).metadata();
-			let size = Math.min(metadata.width, metadata.height);  // Use the smallest dimension
-			await sharp(mediaPath)
-				.resize(size, size, { fit: 'cover' })  // Crop to square (1:1 aspect ratio)
-				.toFile(output);
-		};
-	
-		// Function to crop video into 1:1 aspect ratio
-		const cropVideo = async (mediaPath, output) => {
-			return new Promise((resolve, reject) => {
-				ffmpeg(mediaPath)
-					.videoFilters('crop=in_w:in_w') // Crop video to square (1:1 aspect ratio)
-					.on('end', () => resolve(true))
-					.on('error', (err) => reject(err))
-					.save(output);
-			});
-		};
-	
-		const aspectRatio = await checkAspectRatio(mediaPath);
-		const output = path.join(__dirname, 'temp', `output.${mime.split('/')[1]}`);
-	
-		try {
-			if (/image|webp/.test(mime)) {
-				m.reply(mess.wait);
-				await cropImage(mediaPath, output);
-				media = fs.readFileSync(output);
-				await naze.sendAsSticker(m.chat, media, m, { packname: packname, author: author });
-			} else if (/video/.test(mime)) {
-				if ((quoted.msg || quoted).seconds > 11) return m.reply('Maksimal 10 detik!');
-				m.reply(mess.wait);
-				await cropVideo(mediaPath, output);
-				media = fs.readFileSync(output);
-				await naze.sendAsSticker(m.chat, media, m, { packname: packname, author: author });
-			} else {
-				m.reply(`Kirim/reply gambar/video/gif dengan caption ${prefix + command}\nDurasi Image/Video/Gif 1-9 Detik`);
-			}
-		} catch (err) {
-			console.error(err);
-			m.reply('Terjadi kesalahan saat memproses media.');
-		} finally {
-			// Clean up temporary files
-			if (fs.existsSync(mediaPath)) fs.unlinkSync(mediaPath);
-			if (fs.existsSync(output)) fs.unlinkSync(output);
-		}
-	}
-	break;
-	case 'stickerly': {
-		if (!text) return m.reply('Masukkan URL stickerly yang mulia.\n\n*Contoh:* stickerly https://sticker.ly/s/J9TZWA');
-	
-		let apiUrl = `https://api.siputzx.my.id/api/d/stickerly?url=${encodeURIComponent(text)}`;
-		
-		try {
-			m.reply('_Sebentar yang mulia, hamba sedang mengambil daftar stiker..._');
-	
-			let response = await fetch(apiUrl);
-			let result = await response.json();
-	
-			if (!result.status || !result.data || !result.data.stickers) {
-				return m.reply('_Maaf yang mulia, hamba gagal mendapatkan stiker dari URL tersebut._');
-			}
-	
-			let stickers = result.data.stickers;
-			let totalStickers = stickers.length;
-	
-			m.reply(`_Hamba telah menemukan ${totalStickers} stiker yang mulia, mohon bersabar, hamba akan mengirimnya satu per satu..._`);
-	
-			for (let stickerUrl of stickers) {
-				await naze.sendMessage(m.chat, { sticker: { url: stickerUrl } }, { quoted: m });
-				await new Promise(resolve => setTimeout(resolve, 1000)); // Jeda 1 detik antar sticker
-			}
-	
-			m.reply('_Semua stiker telah dikirim yang mulia! Semoga berkenan._');
-	
-		} catch (error) {
-			console.error(error);
-			m.reply('_Maaf yang mulia, terjadi kesalahan saat mengambil stiker. Coba lagi nanti._');
-		}
-	}
-	break;	
-	case 'stickerwm': case 'swm': case 'curi': case 'colong': case 'take': case 'stickergifwm': case 'sgifwm': {
-		if (!/image|video|sticker/.test(quoted.type)) return m.reply(`Kirim/reply gambar/video/gif dengan caption ${prefix + command}\nDurasi Image/Video/Gif 1-9 Detik`)
-		let media = await (m.quoted ? m.quoted.download() : m.download())
-		let teks1 = text.split`|`[0] ? text.split`|`[0] : ' '
-		let teks2 = text.split`|`[1] ? text.split`|`[1] : ' '
-		if (/image|webp/.test(mime)) {
-			m.reply(mess.wait)
-			if (text == 'meta') {
-				await naze.sendAsSticker(m.chat, media, m, { packname: teks1, author: teks2, isAvatar: 1 })
-			} else {
-				await naze.sendAsSticker(m.chat, media, m, { packname: teks1, author: teks2 })
-			}
-		} else if (/video/.test(mime)) {
-			if ((quoted.msg || quoted).seconds > 11) return m.reply('Maksimal 10 detik!')
-			m.reply(mess.wait)
-			await naze.sendAsSticker(m.chat, media, m, { packname: teks1, author: teks2 })
-		} else {
-			m.reply(`Kirim/reply gambar/video/gif dengan caption ${prefix + command}\nDurasi Video/Gif 1-9 Detik`)
-		}
-	}
-	break
-	case 'style':     {
-		if (!text) return m.reply(`Example: ${prefix + command} bangsulstart`)
-		let anu = await styletext(text)
-		let txt = anu.map(a => `*${a.name}*\n${a.result}`).join`\n\n`
-		m.reply(txt)
-		}
-		break
+	//konvertmenu = 21
 	case 'toaudio':case 'toaud':  {
 		if (!/video|audio/.test(mime)) return m.reply(`Kirim/Reply Video/Audio Yang Ingin Dijadikan Audio Dengan Caption ${prefix + command}`)
 		m.reply(mess.wait)
@@ -3850,111 +3521,6 @@ ${
 		await naze.sendMessage(m.chat, { audio: audio, mimetype: 'audio/ogg; codecs=opus', ptt: true }, { quoted: m })
 	}
 	break
-	case 'translate': case 'tr': {
-		// Objek untuk menghubungkan kode bahasa dengan nama negara/bahasa\
-		const barisjudul = '╔═〇';
-		const tutupjudul = '╠═════════〇';
-		const penutup    = '╚═════════════════〇';
-		const barisfitur = '╠»';
-		const fiturtutup = '╚»';
-
-		const bahasaList = {
-			af: 'Afrikaans 🇿🇦',
-			ar: 'Arab 🇸🇦',
-			zh: 'Chinese 🇨🇳',
-			en: 'English 🇬🇧',
-			'en-us': 'English (United States) 🇺🇸',
-			fr: 'French 🇫🇷',
-			de: 'German 🇩🇪',
-			hi: 'Hindi 🇮🇳',
-			hu: 'Hungarian 🇭🇺',
-			is: 'Icelandic 🇮🇸',
-			id: 'Indonesian 🇮🇩',
-			it: 'Italian 🇮🇹',
-			ja: 'Japanese 🇯🇵',
-			ko: 'Korean 🇰🇷',
-			la: 'Latin 🇻🇦',
-			no: 'Norwegian 🇳🇴',
-			pt: 'Portuguese 🇵🇹',
-			'pt-br': 'Portuguese (Brazil) 🇧🇷',
-			ro: 'Romanian 🇷🇴',
-			ru: 'Russian 🇷🇺',
-			sr: 'Serbian 🇷🇸',
-			es: 'Spanish 🇪🇸',
-			sv: 'Swedish 🇸🇪',
-			ta: 'Tamil 🇮🇳',
-			th: 'Thai 🇹🇭',
-			tr: 'Turkish 🇹🇷',
-			vi: 'Vietnamese 🇻🇳'
-		};
-	
-		// Daftar kode bahasa dengan emoji bendera dan bingkai
-		let list_tr = `
-${barisjudul} *🌍 Kode Bahasa*
-${tutupjudul}
-${barisfitur} 🇿🇦 af : Afrikaans
-${barisfitur} 🇸🇦 ar : Arab
-${barisfitur} 🇨🇳 zh : Chinese
-${barisfitur} 🇬🇧 en : English
-${barisfitur} 🇺🇸 en-us : English (United States)
-${barisfitur} 🇫🇷 fr : French
-${barisfitur} 🇩🇪 de : German
-${barisfitur} 🇮🇳 hi : Hindi
-${barisfitur} 🇭🇺 hu : Hungarian
-${barisfitur} 🇮🇸 is : Icelandic
-${barisfitur} 🇮🇩 id : Indonesian
-${barisfitur} 🇮🇹 it : Italian
-${barisfitur} 🇯🇵 ja : Japanese
-${barisfitur} 🇰🇷 ko : Korean
-${barisfitur} 🇻🇦 la : Latin
-${barisfitur} 🇳🇴 no : Norwegian
-${barisfitur} 🇵🇹 pt : Portuguese
-${barisfitur} 🇧🇷 pt-br : Portuguese (Brazil)
-${barisfitur} 🇷🇴 ro : Romanian
-${barisfitur} 🇷🇺 ru : Russian
-${barisfitur} 🇷🇸 sr : Serbian
-${barisfitur} 🇪🇸 es : Spanish
-${barisfitur} 🇸🇪 sv : Swedish
-${barisfitur} 🇮🇳 ta : Tamil
-${barisfitur} 🇹🇭 th : Thai
-${barisfitur} 🇹🇷 tr : Turkish
-${barisfitur} 🇻🇳 vi : Vietnamese
-${penutup}
-	
-✍️ *keterangan penggunaan*:
-.translete (kode bahasa) (teks/reply pesan)\n
-Contoh: *.translete en Halo*`;
-	
-		// Jika user hanya mengetik 'tr' atau 'translate', tampilkan list bahasa
-		if (!text || args.length === 0) {
-			return m.reply(list_tr);
-		} else {
-			// Proses translasi
-			if (!m.quoted && (!text || !args[1])) return m.reply(`Kirim/reply teks dengan caption *.${command} (kode bahasa) (teks/reply pesan)*`);
-			
-			let lang = args[0] ? args[0] : 'id';  // Gunakan bahasa 'id' sebagai default jika tidak ada
-			let teks = args[1] ? args.slice(1).join(' ') : m.quoted.text;  // Ambil teks dari argumen atau reply
-			try {
-				let hasil = await translate(teks, { to: lang, autoCorrect: true });
-				
-				// Ambil nama bahasa dari bahasaList, jika tidak ditemukan, tampilkan kode bahasa
-				let namaBahasa = bahasaList[lang] || lang.toUpperCase();
-	
-				// Hasil terjemahan dengan gaya menarik
-				let hasil_tr = `
-*Dari*  : ${m.quoted ? m.quoted.text : teks}
-*Ke*     : ${namaBahasa}
-				
-${barisjudul} *Hasil*
-${fiturtutup}  ${hasil[0]}`;
-	
-				m.reply(hasil_tr);
-			} catch (e) {
-				m.reply(`❌ *Kode bahasa ${lang} tidak ditemukan!*`);
-			}
-		}
-	}
-	break;
 	case 'tts': case 'texttospech': case 'tospech': {
 		if (!text) return m.reply('Mana text yg mau diubah menjadi audio?')
 		let { tts } = require('./lib/tts')
@@ -3994,6 +3560,41 @@ ${fiturtutup}  ${hasil[0]}`;
 		m.reply('error')
 		}}
 		break
+	//==================================================================
+	//listsewa = 1
+	case 'listsewa': {
+		const bukajudul = '╔═════════〇';
+		const barisjudul = '╔═〇';
+		const tutupjudul = '╠═════════〇';
+		const barisfitur = '╠»';
+		const penutup = '╚═════════════════〇';
+	
+		m.reply ( `
+	${barisjudul} 🎫 *Daftar Harga Sewa* 🎫 
+	${penutup}
+	
+	${barisjudul} 📦 *Paket 1*
+	${tutupjudul}
+	${barisfitur} 💵 Rp. 5.000 / grup
+	${barisfitur} ⏳ Waktu: 7 Hari
+	${penutup}
+	
+	${barisjudul} 📦 *Paket 2*
+	${tutupjudul}
+	${barisfitur} 💵 Rp. 15.000 / grup
+	${barisfitur} ⏳ Waktu: 1 Bulan
+	${penutup}
+	
+	${barisjudul} 📦 *Paket 3*
+	${tutupjudul}
+	${barisfitur} 💵 Rp. 50.000 / grup
+	${barisfitur} ⏳ Waktu: PERMANEN
+	${penutup}
+	
+	Untuk informasi lebih lanjut,
+	silakan hubungi \`owner\`. Terima kasih!
+	`)}
+	break;
 	//==================================================================
 	// ownermenu = 46
 	case 'addcase': {
@@ -4125,12 +3726,27 @@ ${fiturtutup}  ${hasil[0]}`;
 		m.reply(`sukses menambah "${q}" ke dalam database`)
 		}
 	break
-	case 'blockchat': {
+	case 'blockchat': case 'ban': case 'banned': case 'bc': {
 		if (!isCreator) return m.reply(mess.owner);
-		if (!text) return m.reply('Contoh: .blockchat 628xxxxxxxxxx, 08xxxxxxxxxx, +255xxxxxxxxx');
+		
+		let numbers = [];
+		
+		if (m.quoted) {
+			// Jika reply pesan seseorang, ambil nomor pengirimnya
+			numbers.push(m.quoted.sender.replace(/@s\.whatsapp\.net$/, ''));
+		} 
+		
+		if (m.mentionedJid.length) {
+			// Jika tag user di grup, ambil semua nomor yang di-tag
+			numbers.push(...m.mentionedJid.map(jid => jid.replace(/@s\.whatsapp\.net$/, '')));
+		}
 	
-		// Pisahkan input berdasarkan koma dan hapus spasi berlebih
-		let numbers = text.split(',').map(num => num.trim());
+		if (text) {
+			// Jika mengetik nomor manual
+			numbers.push(...text.split(',').map(num => num.trim()));
+		}
+	
+		if (!numbers.length) return m.reply('Contoh: reply pesan, tag user, atau ketik nomor. Contoh: .banned 628xxxxxxxxxx, 08xxxxxxxxxx');
 	
 		let blockedNow = [];
 		let alreadyBlocked = [];
@@ -4164,7 +3780,7 @@ ${fiturtutup}  ${hasil[0]}`;
 	
 		// Buat respon berdasarkan hasil proses
 		let replyMsg = '';
-		if (blockedNow.length) replyMsg += `✅ Berhasil memblokir:\n${blockedNow.join('\n')}\n\n`;
+		if (blockedNow.length) replyMsg += `wlee ✅:\n${blockedNow.join('\n')}\n\n`;
 		if (alreadyBlocked.length) replyMsg += `⚠️ Sudah diblokir sebelumnya:\n${alreadyBlocked.join('\n')}\n\n`;
 		if (invalidNumbers.length) replyMsg += `❌ Nomor tidak valid:\n${invalidNumbers.join('\n')}`;
 	
@@ -4582,9 +4198,11 @@ break;
             archive.directory('./lib/', 'lib');
             archive.directory('./src/', 'src');
             archive.directory('./temp/', 'temp');
+            archive.directory('./nazedev/', 'nazedev');
             archive.file('./app.json', { name: 'app.json' });
             archive.file('./index.js', { name: 'index.js' });
             archive.file('./LICENSE', { name: 'LICENSE' });
+            archive.file('./naze.js', { name: 'naze.js' });
             archive.file('./package.json', { name: 'package.json' });
             archive.file('./procfile', { name: 'procfile' });
             archive.file('./README.md', { name: 'README.md' });
@@ -4719,14 +4337,19 @@ break;
 		m.reply(`Total Block : ${anu.length}\n` + anu.map(v => '• ' + v.replace(/@.+/, '')).join`\n`)
 	}
 	break
-	case 'listblockchat': {
+	case 'listblockchat': case 'listbanned': case 'listban': {
 		if (!isCreator) return m.reply(mess.owner);
 	
 		let blockedList = [...global.blockedChats];
 	
 		if (blockedList.length === 0) return m.reply('Tidak ada nomor yang diblokir.');
 	
-		let response = '📋 *Daftar Nomor Diblokir:*\n' + blockedList.map(num => `- ${num}`).join('\n');
+		let response = '📋 *Daftar Nomor Yang Dibanned:*\n';
+	
+		blockedList.forEach((num, index) => {
+			let cleanNum = num.replace('@s.whatsapp.net', ''); // Hapus '@s.whatsapp.net'
+			response += `${index + 1}. ${cleanNum}\n`;
+		});
 	
 		m.reply(response);
 	}
@@ -5029,7 +4652,7 @@ break;
 		}
 	}
 	break
-	case 'unblockchat': {
+	case 'unblockchat': case 'unbanned': case 'unban':{
 		if (!isCreator) return m.reply(mess.owner);
 		if (!text) return m.reply('Contoh: .unblockchat 628xxxxxxxxxx');
 	
@@ -5224,7 +4847,7 @@ break;
 		}
 	break		   
 	//==================================================================
-	// searchmenu = 10
+	// searchmenu = 18
 	case 'bingimage': case 'bimg': case 'bingimg':
 			if (!text) return m.reply('Mohon berikan kata kunci pencarian gambar!');
 		  
@@ -5320,6 +4943,249 @@ break;
 			  m.reply('Terjadi kesalahan saat mengambil data dari Bing.');
 			}
 			break;
+	case 'bukalapak': {
+		if (!text) return m.reply('Masukkan kata kunci produk yang ingin dicari!\n\nContoh: .bukalapak sepatu running');
+	
+		await m.reply(mess.wait); // Kirim pesan menunggu
+	
+		try {
+			let res = await fetchJson(`https://api.siputzx.my.id/api/s/bukalapak?query=${encodeURIComponent(text)}`);
+			if (!res.status || !res.data.length) return m.reply('Produk tidak ditemukan. Pastikan kata kunci yang dimasukkan benar.');
+	
+			let push = [];
+	
+			// Fungsi untuk membuat pesan gambar dengan pengecekan validitas URL
+			async function createImage(url) {
+				try {
+					if (!url || typeof url !== 'string' || !url.startsWith('http')) throw new Error("URL gambar tidak valid");
+					const { imageMessage } = await generateWAMessageContent({
+						image: { url }
+					}, { 
+						upload: naze.waUploadToServer 
+					});
+					return imageMessage;
+				} catch (err) {
+					console.error("Gagal memuat gambar:", err.message);
+					return null; // Mengembalikan null jika terjadi error
+				}
+			}
+	
+			let i = 1;
+			for (let product of res.data) {
+				let imageMessage = await createImage(product.thumbnail);
+				if (!imageMessage) {
+					console.warn(`Gambar untuk produk ${product.name || 'tidak diketahui'} gagal dimuat, menggunakan gambar default.`);
+					imageMessage = await createImage("https://dummyimage.com/300x300/cccccc/ffffff.png&text=No+Image");
+				}
+	
+				push.push({
+					body: proto.Message.InteractiveMessage.Body.fromObject({
+						text: `🛍️ *${product.name || 'Nama tidak tersedia'}*\n\n💰 Harga: ${product.price || 'Tidak tersedia'}\n📍 Lokasi: ${product.location || 'Tidak diketahui'}\n⭐ Rating: ${product.rating || 'Tidak ada'}\n\n🔗 *Detail:* ${product.url || 'Tidak tersedia'}`
+					}),
+					footer: proto.Message.InteractiveMessage.Footer.fromObject({
+						text: global.poweredt
+					}),
+					header: proto.Message.InteractiveMessage.Header.fromObject({
+						title: `Produk ${i++}`,
+						hasMediaAttachment: true,
+						imageMessage: imageMessage
+					}),
+					nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({
+						buttons: [
+							{
+								name: "cta_url",
+								buttonParamsJson: `{"display_text":"Beli Sekarang","url":"${product.url || '#'}","merchant_url":"${product.url || '#'}"}`
+							}
+						]
+					})
+				});
+			}
+	
+			// Membuat pesan carousel dengan gambar
+			const bot = generateWAMessageFromContent(m.chat, {
+				viewOnceMessage: {
+					message: {
+						messageContextInfo: {
+							deviceListMetadata: {},
+							deviceListMetadataVersion: 2
+						},
+						interactiveMessage: proto.Message.InteractiveMessage.fromObject({
+							body: proto.Message.InteractiveMessage.Body.create({
+								text: `🔎 Hasil pencarian untuk: *${text}*`
+							}),
+							footer: proto.Message.InteractiveMessage.Footer.create({
+								text: "> Data diperoleh dari Bukalapak"
+							}),
+							header: proto.Message.InteractiveMessage.Header.create({
+								hasMediaAttachment: false
+							}),
+							carouselMessage: proto.Message.InteractiveMessage.CarouselMessage.fromObject({
+								cards: [...push]
+							})
+						})
+					}
+				}
+			}, {});
+	
+			await naze.relayMessage(m.chat, bot.message, { messageId: bot.key.id });
+	
+		} catch (error) {
+			console.error(error);
+			m.reply('Terjadi kesalahan saat mengambil data. Coba lagi nanti.');
+		}
+	}
+	break;
+	case 'cariinfo': case'aoyo' :{
+		if (!q) return m.reply('❓ *Masukkan pertanyaan yang ingin dicari informasinya!*\n\n_Contoh:_ .cariinfo siapa itu siputzx')
+	
+		try {
+			m.reply('🔍 *Mencari informasi...*\nMohon tunggu sebentar ⏳')
+	
+			let url = `https://api.siputzx.my.id/api/ai/aoyo?content=${encodeURIComponent(q)}`
+			let response = await fetch(url)
+			let json = await response.json()
+	
+			if (json.status && json.data) {
+				let info = json.data.split('[START]')[0].trim() // Hapus bagian metadata yang tidak perlu
+	
+				let result = `📌 *Hasil Pencarian:*\n\n` +
+								`❇️ *Pertanyaan:* ${q}\n` +
+								`📝 *Jawaban:* ${info}\n\n` +
+								`📢 _Informasi ini mungkin tidak 100% akurat, silakan cek sumber lain jika perlu._`
+	
+				m.reply(result)
+			} else {
+				m.reply('⚠️ *Gagal mendapatkan informasi!*\nCoba lagi nanti atau ubah pertanyaanmu.')
+			}
+		} catch (error) {
+			console.error(`[ERROR - cariinfo]: ${error.message}`)
+			m.reply('🚨 *Terjadi kesalahan saat mencari informasi!*\nSilakan coba lagi nanti.')
+		}
+	}
+	break				
+	case "cekhewan":
+		if (!text) return m.reply("🔍 Masukkan nama hewan yang ingin dicari!\nContoh: .cekhewan cheetah");
+	
+		let namaHewan = encodeURIComponent(text.trim());
+		let iniapi = "A50K0DsP6NRbwd8Dsro7Yg==7rpgFFwtSv687zai"; // API Key
+		let urlhewan = `https://api.api-ninjas.com/v1/animals?name=${namaHewan}`;
+	
+		try {
+			m.reply("🔍 Sedang mencari informasi tentang hewan... Mohon tunggu sebentar!");
+	
+			let response = await axios.get(urlhewan, {
+				headers: { "X-Api-Key": iniapi }
+			});
+	
+			if (response.status === 200 && response.data.length > 0) {
+				let data = response.data[0];
+	
+				let taxonomy = data.taxonomy;
+				let characteristics = data.characteristics;
+				let locations = data.locations ? data.locations.join(", ") : "Tidak diketahui";
+	
+				let hasil = `🐾 *Informasi Tentang Hewan*\n\n` +
+							`📌 *Nama:* ${data.name || "Tidak diketahui"}\n` +
+							`🔬 *Nama Ilmiah:* ${taxonomy.scientific_name || "Tidak diketahui"}\n` +
+							`🌍 *Habitat:* ${characteristics.habitat || "Tidak diketahui"}\n` +
+							`📍 *Wilayah Persebaran:* ${locations}\n` +
+							`🍽️ *Jenis Makanan:* ${characteristics.diet || "Tidak diketahui"}\n` +
+							`💨 *Kecepatan Maksimal:* ${characteristics.top_speed ? `${characteristics.top_speed} (mph)` : "Tidak diketahui"}\n` +
+							`🦴 *Jenis Kulit:* ${characteristics.skin_type || "Tidak diketahui"}\n` +
+							`👶 *Nama Anak Hewan:* ${characteristics.name_of_young || "Tidak diketahui"}\n` +
+							`👨‍👩‍👧‍👦 *Pola Sosial:* ${characteristics.group_behavior || "Tidak diketahui"}\n` +
+							`⚠️ *Ancaman Utama:* ${characteristics.biggest_threat || "Tidak diketahui"}\n` +
+							`🎯 *Fakta Menarik:* "${characteristics.slogan || "Tidak ada informasi"}"\n\n` +
+							`📏 *Tinggi:* ${characteristics.height || "Tidak diketahui"}\n` +
+							`⚖️ *Berat:* ${characteristics.weight || "Tidak diketahui"}\n` +
+							`🍼 *Masa Menyusui:* ${characteristics.age_of_weaning || "Tidak diketahui"}\n` +
+							`💑 *Usia Matang untuk Berkembang Biak:* ${characteristics.age_of_sexual_maturity || "Tidak diketahui"}\n` +
+							`🐣 *Jumlah Anak Sekali Lahir:* ${characteristics.average_litter_size || "Tidak diketahui"}\n` +
+							`⏳ *Masa Kehamilan:* ${characteristics.gestation_period || "Tidak diketahui"}\n` +
+							`👴 *Usia Hidup Rata-rata:* ${characteristics.lifespan || "Tidak diketahui"}\n` +
+							`🔢 *Jumlah Spesies:* ${characteristics.number_of_species || "Tidak diketahui"}`;
+	
+				m.reply(hasil);
+			} else {
+				m.reply("⚠️ Maaf, tidak ada informasi yang ditemukan untuk hewan tersebut.");
+			}
+		} catch (error) {
+			m.reply(`❌ Terjadi kesalahan saat mengambil data: ${error.message}`);
+		}
+		break;
+	case 'cuaca': case 'weather': {
+		if (!text) {
+			return m.reply('Silakan masukkan nama kota yang ingin Anda cek cuacanya.');
+		}
+	
+		try {
+			let wdata = await axios.get(
+				`https://api.openweathermap.org/data/2.5/weather?q=${text}&units=metric&appid=060a6bcfa19809c2cd4d97a212b19273&lang=id`
+			);
+	
+			// Deskripsi lengkap cuaca
+			const cuacaUtama = wdata.data.weather[0].main;
+			const deskripsiCuaca = wdata.data.weather[0].description;
+			const suhu = wdata.data.main.temp;
+			const suhuMin = wdata.data.main.temp_min;
+			const suhuMax = wdata.data.main.temp_max;
+			const terasaSeperti = wdata.data.main.feels_like;
+			const tekananUdara = wdata.data.main.pressure;
+			const tekananLaut = wdata.data.main.sea_level || 'N/A'; // Tekanan air laut (jika tersedia)
+			const tekananTanah = wdata.data.main.grnd_level || 'N/A'; // Tekanan permukaan tanah (jika tersedia)
+			const kelembaban = wdata.data.main.humidity;
+			const kecepatanAngin = wdata.data.wind.speed;
+			const arahAngin = wdata.data.wind.deg;
+			const jarakPandang = wdata.data.visibility / 1000; // Mengubah ke kilometer
+			const tutupanAwan = wdata.data.clouds.all;
+			const volumeHujan = (wdata.data.rain && wdata.data.rain['1h']) || 0; // Volume hujan (jika tersedia)
+			const lintang = wdata.data.coord.lat;
+			const bujur = wdata.data.coord.lon;
+			const negara = wdata.data.sys.country;
+			
+			// Mendapatkan timezone dari respons API
+			const zonaWaktu = wdata.data.timezone; // Mengambil data timezone dari API (dalam detik)
+			const waktuLocal = new Date().getTimezoneOffset() * 60; // Selisih waktu sistem lokal dengan UTC (dalam detik)
+			
+			// Menghitung offset untuk zona waktu kota
+			const offset = zonaWaktu - waktuLocal; // Selisih waktu dari UTC (dalam detik)
+	
+			// Konversi waktu matahari terbit dan terbenam dari UTC ke waktu lokal
+			const sunrise = new Date((wdata.data.sys.sunrise + offset) * 1000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+			const sunset = new Date((wdata.data.sys.sunset + offset) * 1000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+	
+			// Menyusun pesan cuaca
+let textw = `*Informasi Cuaca untuk Kota ${text.charAt(0).toUpperCase() + text.slice(1)}*\n\n`;
+textw += `🌤️ *Cuaca Utama*         : ${cuacaUtama}\n`;
+textw += `📖 *Deskripsi*                 : ${deskripsiCuaca}\n`;
+textw += `🌡️ *Suhu Rata-rata*     : ${suhu} °C\n`;
+textw += `🔻 *Suhu Minimum*      : ${suhuMin} °C\n`;
+textw += `🔺 *Suhu Maksimum*   : ${suhuMax} °C\n`;
+textw += `🔥 *Terasa Seperti*       : ${terasaSeperti} °C\n`;
+textw += `🌬️ *Kecepatan Angin*  : ${kecepatanAngin} m/s\n`;
+textw += `🧭 *Arah Angin*              : ${arahAngin}°\n`;
+textw += `💧 *Kelembaban*           : ${kelembaban}%\n`;
+textw += `🎈 *Tekanan Udara*      : ${tekananUdara} hPa\n`;
+textw += `🌊 *Tekanan Air Laut*  : ${tekananLaut} hPa\n`;
+textw += `🌍 *Tekanan Tanah*     : ${tekananTanah} hPa\n`;
+textw += `🌫️ *Jarak Pandang*      : ${jarakPandang} km\n`;
+textw += `☁️ *Tutup Awan*            : ${tutupanAwan}%\n`;
+textw += `🌧️ *Volume Hujan*        : ${volumeHujan} mm/h\n\n`;
+textw += `📍 *Koordinat*  \n`;
+textw += `   - Lintang : ${lintang}\n`;
+textw += `   - Bujur      : ${bujur}\n\n`;
+textw += `🌅 *Matahari Terbit*          : ${sunrise}\n`;
+textw += `🌇 *Matahari Terbenam* : ${sunset}\n\n`;
+textw += `🏳️ *Negara*           : ${negara}\n`;
+
+			// Mengirimkan pesan dengan format yang lebih menarik
+			naze.sendMessage(m.chat, { text: textw }, { quoted: m });
+	
+		} catch (error) {
+			m.reply('Maaf, terjadi kesalahan saat mengambil data cuaca. Pastikan nama kota yang Anda masukkan sudah benar.');
+		}
+	}
+	break;
 	case 'ghstalk':case 'ghstalker': case 'githubstalk':case 'githubstalker':
 		if (!text) return m.reply('Harap Masukkan Username')
 	
@@ -5453,7 +5319,116 @@ break;
 	
 	}
 	break;
-	case 'lirik':      case 'lyric':     {
+	case 'gsmarena': {
+		if (!text) return m.reply('Masukkan nama perangkat yang ingin dicari!\n\nContoh: .gsmarena poco f4');
+	
+		await m.reply(mess.wait); // Kirim pesan menunggu
+	
+		try {
+			let res = await fetchJson(`https://api.siputzx.my.id/api/s/gsmarena?query=${encodeURIComponent(text)}`);
+			if (!res.status || !res.data.length) return m.reply('Perangkat tidak ditemukan. Pastikan nama yang dimasukkan benar.');
+	
+			let push = [];
+			
+			// Fungsi untuk membuat pesan gambar
+			async function createImage(url) {
+				const { imageMessage } = await generateWAMessageContent({
+					image: { url }
+				}, { 
+					upload: naze.waUploadToServer 
+				});
+				return imageMessage;
+			}
+	
+			let i = 1;
+			for (let device of res.data) {
+				push.push({
+					body: proto.Message.InteractiveMessage.Body.fromObject({
+						text: `📱 *${device.name}*\n\n📝 ${device.description}\n\n🔗 *Detail:* https://www.gsmarena.com/${device.id}`
+					}),
+					footer: proto.Message.InteractiveMessage.Footer.fromObject({
+						text: global.poweredt
+					}),
+					header: proto.Message.InteractiveMessage.Header.fromObject({
+						title: `Perangkat ${i++}`,
+						hasMediaAttachment: true,
+						imageMessage: await createImage(device.thumbnail)
+					}),
+					nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({
+						buttons: [
+							{
+								name: "cta_url",
+								buttonParamsJson: `{"display_text":"Lihat di GSMArena","url":"https://www.gsmarena.com/${device.id}","merchant_url":"https://www.gsmarena.com/${device.id}"}`
+							}
+						]
+					})
+				});
+			}
+	
+			// Membuat pesan carousel dengan gambar
+			const bot = generateWAMessageFromContent(m.chat, {
+				viewOnceMessage: {
+					message: {
+						messageContextInfo: {
+							deviceListMetadata: {},
+							deviceListMetadataVersion: 2
+						},
+						interactiveMessage: proto.Message.InteractiveMessage.fromObject({
+							body: proto.Message.InteractiveMessage.Body.create({
+								text: `🔎 Hasil pencarian untuk: *${text}*`
+							}),
+							footer: proto.Message.InteractiveMessage.Footer.create({
+								text: "> Data diperoleh dari GSMArena"
+							}),
+							header: proto.Message.InteractiveMessage.Header.create({
+								hasMediaAttachment: false
+							}),
+							carouselMessage: proto.Message.InteractiveMessage.CarouselMessage.fromObject({
+								cards: [...push]
+							})
+						})
+					}
+				}
+			}, {});
+	
+			await naze.relayMessage(m.chat, bot.message, { messageId: bot.key.id });
+	
+		} catch (error) {
+			console.error(error);
+			m.reply('Terjadi kesalahan saat mengambil data. Coba lagi nanti.');
+		}
+	}
+	break;	
+	case 'kodepos': {
+		if (!text) return m.reply('Masukkan nama desa atau kelurahan yang ingin dicari kode posnya!\n\nContoh: .kodepos Pasiran Jaya');
+		
+		await m.reply(mess.wait); // Kirim pesan menunggu
+		
+		try {
+			let res = await fetchJson(`https://api.siputzx.my.id/api/tools/kodepos?form=${encodeURIComponent(text)}`);
+			console.log('Log Response API:', res); // Log response dari API
+			
+			if (!res.status || !res.data.length) return m.reply('Kode pos tidak ditemukan. Pastikan nama desa/kelurahan yang dimasukkan benar.');
+			
+			let result = res.data[0];
+			let replyMessage = `📍 *Hasil Pencarian Kode Pos*
+	
+	🏠 *Desa/Kelurahan :* ${result.desa || '-'}
+	🏢 *Kecamatan :* ${result.kecamatan || '-'}
+	🏙️ *Kota/Kabupaten :* ${result.kota || '-'}
+	🌍 *Provinsi :* ${result.provinsi || '-'}
+	📮 *Kode Pos :* ${result.kodepos || '-'}
+	
+	🔎 Data diperoleh dari API.`;
+			
+			await m.reply(replyMessage);
+		} catch (error) {
+			console.error('Error fetching kodepos:', error);
+			m.reply('Terjadi kesalahan saat mengambil data kode pos. Coba lagi nanti.');
+		}
+	}
+	break;	
+	case 'lirik':     	case 'lyric':     {
 		if (!text) return m.reply('Masukkan nama artis dan judul lagu! Contoh: !lirik Adele Someone Like You');
 		
 		// Pisahkan nama artis dan judul lagu dari input pengguna
@@ -5481,7 +5456,58 @@ break;
 		}
 	}
 	break;
-	case 'pinterest':  case 'pin':      case 'pint': {
+	case 'negarainfo':	case 'infonegara': case 'infocountry': case 'countryinfo': {
+		if (!text) return m.reply('Masukkan nama negara yang ingin dicari informasinya!\n\nContoh: .negarainfo Indonesia');
+	
+		await m.reply(mess.wait); // Kirim pesan menunggu
+	
+		try {
+			let res = await fetchJson(`https://api.siputzx.my.id/api/tools/countryInfo?name=${encodeURIComponent(text)}`);
+			if (!res.status || !res.data) return m.reply('Negara tidak ditemukan atau terjadi kesalahan dalam mengambil data.');
+	
+			let negara = res.data;
+			let luasKm = negara.area?.squareKilometers ? negara.area.squareKilometers.toLocaleString() + " km²" : "Tidak tersedia";
+			let luasMil = negara.area?.squareMiles ? negara.area.squareMiles.toLocaleString() + " mil²" : "Tidak tersedia";
+			let flagUrl = negara.flag ? negara.flag.replace(/\.webp$/, '') : null; // Menghapus .webp jika ada
+	
+			let pesan = `🌍 *Informasi Negara : ${negara.name}*\n\n` +
+						`🏛 *Ibukota :* ${negara.capital || 'Tidak tersedia'}\n` +
+						`📍 *Koordinat :* ${negara.coordinates?.latitude}, ${negara.coordinates?.longitude}\n` +
+						`🗺 *Benua :* ${negara.continent?.name} ${negara.continent?.emoji}\n` +
+						`📞 *Kode Telepon :* ${negara.phoneCode || 'Tidak tersedia'}\n` +
+						`💰 *Mata Uang :* ${negara.currency || 'Tidak tersedia'}\n` +
+						`🚗 *Arah Mengemudi :* ${negara.drivingSide ? 'Sebelah ' + negara.drivingSide : 'Tidak tersedia'}\n` +
+						`🌎 *Domain Internet :* ${negara.internetTLD || 'Tidak tersedia'}\n` +
+						`📏 *Luas Wilayah :* ${luasKm} (${luasMil})\n` +
+						`🏛 *Bentuk Pemerintahan :* ${negara.constitutionalForm || 'Tidak tersedia'}\n` +
+						`🍷 *Larangan Alkohol :* ${negara.alcoholProhibition || 'Tidak tersedia'}\n` +
+						`🏝 *Terkenal Karena :* ${negara.famousFor || 'Tidak tersedia'}\n\n` +
+						`📌 *Cek di Google Maps :* \n${negara.googleMapsLink}\n`;
+	
+			// Mengirim pesan dengan thumbnail bendera
+			await naze.sendMessage(m.chat, {
+				text: pesan,
+				contextInfo: {
+					externalAdReply: {
+						title: `Informasi Negara: ${negara.name}`,
+						showAdAttribution: true,
+						thumbnailUrl: flagUrl, // Gambar bendera sebagai thumbnail
+						mediaType: 1,
+						previewType: 0,
+						renderLargerThumbnail: true,
+						mediaUrl: negara.googleMapsLink, // Mengarah ke Google Maps negara
+						sourceUrl: negara.googleMapsLink, // Link utama yang dituju
+					}
+				}
+			}, { quoted: m });
+	
+		} catch (error) {
+			console.error("Error mengambil data negara:", error);
+			m.reply('Terjadi kesalahan saat mengambil data. Coba lagi nanti.');
+		}
+	}
+	break;
+	case 'pinterest':	case 'pin':      case 'pint': {
 		if (!text) return m.reply(mess.text);
 		
 		// Mengirim pesan "wait"
@@ -5574,7 +5600,7 @@ break;
 
 	}
 	break;
-	case 'play': case 'ytplay': case 'yts': case 'ytsearch': {
+	case 'play':		case 'ytplay': case 'yts': case 'ytsearch': {
 		if (!text) return m.reply(`Contoh: ${prefix + command} dj komang`);
 	
 		m.reply(mess.wait);
@@ -5697,6 +5723,44 @@ break;
 		}
 	}
 	break
+	case 'tiktokstalk': case 'tiktokstalker': case 'ttstalk': {
+		if (!args[0]) return m.reply('Masukkan username TikTok yang ingin dicari!\n\nContoh: .tiktokstalk mrbeast')
+
+		m.reply(mess.wait) // Kirim pesan menunggu
+
+		try {
+			let res = await fetchJson(`https://api.siputzx.my.id/api/stalk/tiktok?username=${args[0]}`)
+			if (!res.status || !res.data.user) return m.reply('Gagal menemukan akun TikTok. Pastikan username benar.')
+
+			let user = res.data.user
+			let stats = res.data.stats
+			let profilePic = user.avatarLarger
+
+			let caption = `*「 TIKTOK STALKER 」*\n\n`
+			caption += `🔹 *Nama:* ${user.nickname}\n`
+			caption += `🔹 *Username:* @${user.uniqueId}\n`
+			caption += `🔹 *ID Pengguna:* ${user.id}\n`
+			caption += `🔹 *Bio:* ${user.signature || '-'}\n`
+			caption += `🔹 *Akun Verified:* ${user.verified ? '✅ Ya' : '❌ Tidak'}\n`
+			caption += `🔹 *Wilayah:* ${user.region || '-'}\n`
+			caption += `🔹 *Link Bio:* ${user.bioLink?.link || '-'}\n\n`
+			caption += `📊 *Statistik Akun:*\n`
+			caption += `   👥 *Pengikut:* ${stats.followerCount.toLocaleString()}\n`
+			caption += `   👤 *Mengikuti:* ${stats.followingCount.toLocaleString()}\n`
+			caption += `   ❤️ *Total Like:* ${stats.heartCount.toLocaleString()}\n`
+			caption += `   🎥 *Jumlah Video:* ${stats.videoCount.toLocaleString()}\n`
+			caption += `   🤝 *Teman:* ${stats.friendCount.toLocaleString()}\n\n`
+			caption += `🔗 *Profil:* https://www.tiktok.com/@${user.uniqueId}`
+
+			// Kirim foto profil dengan caption
+			naze.sendMessage(m.chat, { image: { url: profilePic }, caption: caption }, { quoted: m })
+
+		} catch (err) {
+			console.error(err)
+			m.reply('Terjadi kesalahan saat mengambil data. Coba lagi nanti.')
+		}
+	}
+	break
 	case 'wallpaper': {
 		if (!text) return m.reply(`Example: ${prefix + command} hu tao`)
 		try {
@@ -5725,6 +5789,1201 @@ break;
 		});
 		}
 		break
+	//==================================================================
+	//stickermenu = 14
+	case 'brat':case 'bratsticker': case 'bratstiker':case 'bratstick': {
+		if (!text && (!m.quoted || !m.quoted.text)) return m.reply(`Kirim/reply pesan *${prefix + command}* Teksnya`)
+		try {
+			await naze.sendAsSticker(m.chat, 'https://brat.caliphdev.com/api/brat?text=' + (text || m.quoted.text), m, { packname: packname, author: author })
+			setLimit(m, db)
+		} catch (e) {
+			try {
+				await naze.sendMessage(m.chat, { image: { url: 'https://mannoffc-x.hf.space/brat?q=' + (text || m.quoted.text) }}, { quoted: m })
+			} catch (e) {
+				m.reply('Server Brat Sedang Offline!')
+			}
+		}
+	}
+	break
+	case 'bratvid': case 'bratvideo': {
+		if (!text && (!m.quoted || !m.quoted.text)) return m.reply(`Kirim/reply pesan *${prefix + command}* Teksnya`)
+		const teks = (m.quoted ? m.quoted.text : text).split(' ');
+		const tempDir = path.join(process.cwd(), 'database/sampah');
+		try {
+			const framePaths = [];
+			for (let i = 0; i < teks.length; i++) {
+				const currentText = teks.slice(0, i + 1).join(' ');
+				const res = await axios.get('https://brat.caliphdev.com/api/brat?text=' + encodeURIComponent(currentText), { responseType: 'arraybuffer' });
+				const framePath = path.join(tempDir, `${m.sender + i}.mp4`);
+				fs.writeFileSync(framePath, res.data);
+				framePaths.push(framePath);
+			}
+			const fileListPath = path.join(tempDir, `${m.sender}.txt`);
+			let fileListContent = '';
+			for (let i = 0; i < framePaths.length; i++) {
+				fileListContent += `file '${framePaths[i]}'\n`;
+				fileListContent += `duration 0.5\n`;
+			}
+			fileListContent += `file '${framePaths[framePaths.length - 1]}'\n`;
+			fileListContent += `duration 3\n`;
+			fs.writeFileSync(fileListPath, fileListContent);
+			const outputVideoPath = path.join(tempDir, `${m.sender}-output.mp4`);
+			execSync(`ffmpeg -y -f concat -safe 0 -i ${fileListPath} -vf 'fps=30' -c:v libx264 -preset veryfast -pix_fmt yuv420p -t 00:00:10 ${outputVideoPath}`);
+			naze.sendAsSticker(m.chat, outputVideoPath, m, { packname: packname, author: author })
+			framePaths.forEach((filePath) => fs.unlinkSync(filePath));
+			fs.unlinkSync(fileListPath);
+			fs.unlinkSync(outputVideoPath);
+			setLimit(m, db)
+		} catch (e) {
+			console.log(e)
+			m.reply('Terjadi Kesalahan Saat Memproses Permintaan!')
+		}
+	}
+	break
+	case 'brat2': case 'bratsticker2': case 'bratstiker2':case 'bratstick2':{
+		const { createCanvas, registerFont } = require('canvas');
+		const Jimp = require('jimp');
+	
+		async function BratGenerator(teks) {
+			let width = 2048;
+			let height = 2048;
+			let margin = 30;
+			let wordSpacing = 90;
+			let canvas = createCanvas(width, height);
+			let ctx = canvas.getContext('2d');
+	
+			// Latar belakang putih
+			ctx.fillStyle = 'white';
+			ctx.fillRect(2, 0, width, height);
+	
+			// Mendaftarkan font
+			registerFont('./lib/arialnarrow.ttf', { family: 'Narrow' });
+	
+			let fontSize = 480;
+			let lineHeightMultiplier = 1.2;
+			ctx.textAlign = 'left';
+			ctx.textBaseline = 'top';
+			ctx.fillStyle = 'black';
+			ctx.font = `${fontSize}px Narrow`;
+	
+			let words = teks.split(' ');
+			let lines = [];
+	
+			let rebuildLines = () => {
+				lines = [];
+				let currentLine = '';
+				for (let word of words) {
+					let testLine = currentLine ? `${currentLine} ${word}` : word;
+					let lineWidth =
+						ctx.measureText(testLine).width + (currentLine.split(' ').length - 1) * wordSpacing;
+					if (lineWidth < width - 2 * margin) {
+						currentLine = testLine;
+					} else {
+						lines.push(currentLine);
+						currentLine = word;
+					}
+				}
+				if (currentLine) {
+					lines.push(currentLine);
+				}
+			};
+	
+			rebuildLines();
+	
+			// Menyesuaikan ukuran font agar teks pas dalam canvas
+			while (lines.length * fontSize * lineHeightMultiplier > height - 2 * margin) {
+				fontSize -= 2;
+				ctx.font = `${fontSize}px Narrow`;
+				rebuildLines();
+			}
+	
+			let lineHeight = fontSize * lineHeightMultiplier;
+			let y = margin;
+	
+			for (let line of lines) {
+				let wordsInLine = line.split(' ');
+				let x = margin;
+				for (let word of wordsInLine) {
+					ctx.fillText(word, x, y);
+					x += ctx.measureText(word).width + wordSpacing;
+				}
+				y += lineHeight;
+			}
+	
+			let buffer = canvas.toBuffer('image/png');
+			let image = await Jimp.read(buffer);
+			image.blur(3);
+			let blurredBuffer = await image.getBufferAsync(Jimp.MIME_PNG);
+	
+			return naze.sendAsSticker(m.chat, blurredBuffer, m, { packname: "", author: "" });
+		}
+	
+		if (!text) return m.reply("Masukkan teks untuk stiker.\n\nContoh:\n.brat Atmin Ganteng");
+	
+		await BratGenerator(text);
+	}
+	break;
+	case 'bratvid2': case 'bratvideo2': {
+	const { createCanvas, registerFont } = require('canvas');
+	const Jimp = require('jimp');
+	const { execSync } = require('child_process');
+	const path = require('path');
+	const fs = require('fs');
+	if (!text) return m.reply("Masukkan teks untuk video stiker.\n\nContoh:\n.bratvideo Atmin Ganteng");
+	if (text.length > 40) return m.reply("Karakter terbatas, max 40 huruf!");
+	m.reply(mess.wait);
+	const words = text.split(" ");
+	const tempDir = path.join(process.cwd(), 'lib');
+	if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+	const framePaths = [];
+
+	try {
+	for (let i = 0; i < words.length; i++) {
+	let width = 2048;
+	let height = 2048;
+	let margin = 20;
+	let wordSpacing = 50;
+	let canvas = createCanvas(width, height);
+	let ctx = canvas.getContext('2d');
+
+	// Latar belakang putih
+	ctx.fillStyle = 'white';
+	ctx.fillRect(0, 0, width, height);
+
+	// Mendaftarkan font
+	registerFont('./lib/arialnarrow.ttf', { family: 'Narrow' });
+
+	let fontSize = 680;
+	let lineHeightMultiplier = 1.3;
+	ctx.textAlign = 'left';
+	ctx.textBaseline = 'top';
+	ctx.fillStyle = 'black';
+	ctx.font = `${fontSize}px Narrow`;
+
+	let currentText = words.slice(0, i + 1).join(" ");
+	let lines = [];
+
+	let rebuildLines = () => {
+	lines = [];
+	let currentLine = '';
+	for (let word of currentText.split(' ')) {
+	let testLine = currentLine ? `${currentLine} ${word}` : word;
+	let lineWidth =
+	ctx.measureText(testLine).width + (currentLine.split(' ').length - 1) * wordSpacing;
+	if (lineWidth < width - 2 * margin) {
+	currentLine = testLine;
+	} else {
+	lines.push(currentLine);
+	currentLine = word;
+	}
+	}
+	if (currentLine) {
+	lines.push(currentLine);
+	}
+	};
+
+	rebuildLines();
+
+	while (lines.length * fontSize * lineHeightMultiplier > height - 2 * margin) {
+	fontSize -= 2;
+	ctx.font = `${fontSize}px Narrow`;
+	rebuildLines();
+	}
+
+	let lineHeight = fontSize * lineHeightMultiplier;
+	let y = margin;
+
+	for (let line of lines) {
+	let wordsInLine = line.split(' ');
+	let x = margin;
+	for (let word of wordsInLine) {
+	ctx.fillText(word, x, y);
+	x += ctx.measureText(word).width + wordSpacing;
+	}
+	y += lineHeight;
+	}
+
+	let buffer = canvas.toBuffer('image/png');
+	let image = await Jimp.read(buffer);
+	image.blur(3);
+	let blurredBuffer = await image.getBufferAsync(Jimp.MIME_PNG);
+	let framePath = path.join(tempDir, `frame${i}.png`);
+	fs.writeFileSync(framePath, blurredBuffer);
+	framePaths.push(framePath);
+	}
+
+	// Buat daftar file untuk FFmpeg
+	const fileListPath = path.join(tempDir, "filelist.txt");
+	let fileListContent = framePaths.map(frame => `file '${frame}'\nduration 0.7`).join("\n");
+	fileListContent += `\nfile '${framePaths[framePaths.length - 1]}'\nduration 2`;
+	fs.writeFileSync(fileListPath, fileListContent);
+
+	// Gabungkan gambar menjadi video
+	const outputVideoPath = path.join(tempDir, "output.mp4");
+	execSync(
+	`ffmpeg -y -f concat -safe 0 -i ${fileListPath} -vf "fps=30,format=yuv420p" -c:v libx264 -preset ultrafast ${outputVideoPath}`
+	);
+
+	// Kirim sebagai sticker video
+	await naze.sendAsSticker(m.chat, outputVideoPath, m, {
+	packname: global.packname,
+	author: global.author
+	});
+
+	// Bersihkan file sementara
+	framePaths.forEach(frame => fs.existsSync(frame) && fs.unlinkSync(frame));
+	if (fs.existsSync(fileListPath)) fs.unlinkSync(fileListPath);
+	if (fs.existsSync(outputVideoPath)) fs.unlinkSync(outputVideoPath);
+
+	} catch (e) {
+	console.error(e);
+	m.reply('Terjadi kesalahan dalam pembuatan video stiker.');
+	}
+	}
+	break;
+	case 'carbonify': case 'karbonify': {
+		if (!text && (!m.quoted || !m.quoted.text)) return m.reply(`Kirim/reply pesan *${prefix + command}* Teksnya`)
+		try {
+			await naze.sendAsSticker(m.chat, 'https://api.siputzx.my.id/api/m/carbonify?input=' + (text || m.quoted.text), m, { packname: packname, author: author })
+			setLimit(m, db)
+		} catch (error) {
+			console.error(error);
+			m.reply('Terjadi kesalahan saat mengubah teks menjadi gambar karbonified.');
+		}
+	}
+	break	
+	case 'emojimix': {
+		if (!text) return m.reply(`Example: ${prefix + command} 😅+🤔`)
+		let [emoji1, emoji2] = text.split`+`
+		if (!emoji1 && !emoji2) return m.reply(`Example: ${prefix + command} 😅+🤔`)
+		try {
+			let anu = await axios.get(`https://tenor.googleapis.com/v2/featured?key=AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ&contentfilter=high&media_filter=png_transparent&component=proactive&collection=emoji_kitchen_v5&q=${encodeURIComponent(emoji1)}_${encodeURIComponent(emoji2)}`)
+			if (anu.data.results.length < 1) return m.reply(`Mix Emoji ${text} Tidak Ditemukan!`)
+			for (let res of anu.data.results) {
+				await naze.sendAsSticker(m.chat, res.url, m, { packname: packname, author: author })
+			}
+		} catch (e) {
+			m.reply('Gagal Mix Emoji!')
+		}
+	}
+	break
+	case 'qc': case 'quote': case 'fakechat': {
+		// Cek apakah ada teks yang di-reply atau teks langsung dari pengguna
+		let textToQuote = '';
+		let name = ''; // Variabel untuk menyimpan nama yang akan digunakan
+		let senderId = m.sender; // Default menggunakan ID pengirim perintah
+
+		if (m.quoted && m.quoted.text) {
+			textToQuote = m.quoted.text; // Mengambil teks dari pesan yang di-reply
+			senderId = m.quoted.sender; // Menggunakan ID pengirim pesan yang di-reply
+			name = m.quoted.pushName || '🗿☕'; // Menggunakan nama dari pesan yang di-reply atau fallback ke string kosong
+		} else if (text) {
+			textToQuote = text; // Menggunakan teks yang diberikan langsung
+			name = m.pushName; // Menggunakan nama pengirim perintah
+		} else {
+			return m.reply(`Kirim/reply pesan *${prefix + command}* Teksnya`);
+		}
+
+		try {
+			// Mengambil foto profil user yang mengirim pesan yang di-reply atau pengirim perintah
+			let ppnya = await naze.profilePictureUrl(senderId, 'image').catch(() => 'https://i.pinimg.com/564x/8a/e9/e9/8ae9e92fa4e69967aa61bf2bda967b7b.jpg');
+
+			// Menghasilkan stiker dari teks
+			let res = await quotedLyo(textToQuote, name, ppnya);
+			await naze.sendAsSticker(m.chat, Buffer.from(res.result.image, 'base64'), m, { packname: packname, author: author });
+		} catch (e) {
+			m.reply('Server Create Sedang Offline!');
+		}
+	}
+	break;
+	case 'smeme': case 'stickmeme': case 'stikmeme': case 'stickermeme': case 'stikermeme': {
+		try {
+			if (!/image|webp/.test(mime)) return m.reply(`Kirim/reply image/sticker\nDengan caption ${prefix + command} atas|bawah`)
+			if (!text) return m.reply(`Kirim/reply image/sticker dengan caption ${prefix + command} atas|bawah`)
+			m.reply(mess.wait)
+			let atas = text.split`|`[0] ? text.split`|`[0] : '-'
+			let bawah = text.split`|`[1] ? text.split`|`[1] : '-'
+			let media = await (m.quoted ? m.quoted.download() : m.download())
+			let mem = await UguuSe(media)
+			let smeme = `https://api.memegen.link/images/custom/${encodeURIComponent(atas)}/${encodeURIComponent(bawah)}.png?background=${mem.url}`
+			await naze.sendAsSticker(m.chat, smeme, m, { packname: packname, author: author })
+		} catch (e) {
+			m.reply('Server Meme Sedang Offline!')
+		}
+	}
+	break
+	case 'ssweb': case 'ss':  {
+		if (!text) return m.reply(`Example: ${prefix + command} https://github.com/nazedev/naze-md`)
+		try {
+			if (!text.startsWith('http')) {
+				let buf = 'https://image.thum.io/get/width/1900/crop/1000/fullpage/https://' + q;
+				await naze.sendMessage(m.chat, { image: { url: buf }, caption: 'Done' }, { quoted: m })
+			} else {
+				let buf = 'https://image.thum.io/get/width/1900/crop/1000/fullpage/' + q;
+				await naze.sendMessage(m.chat, { image: { url: buf }, caption: 'Done' }, { quoted: m })
+			}
+		} catch (e) {
+			m.reply('Server SS web Sedang Offline!')
+		}
+	}
+	break
+	case 'stele1': case 'stickertelegram1': case 'stickertele1': case 'sticktele1': {//stele web api (tidak dihitung)
+		console.log(`[LOG] Perintah ${command} diterima dengan teks:`, text);
+	
+		if (!text) return m.reply(`Format salah!
+		Untuk mengirim stiker tertentu, gunakan perintah:
+		\`${prefix + command} (jumlah stiker) (nama pack sticker)\`
+		
+		Atau untuk mengirim semua stiker, gunakan perintah:
+		\`${prefix + command} all (nama pack sticker)\``);
+	
+		let [limit, ...stickerName] = text.split(' ');
+		stickerName = stickerName.join(' ');  // Menyatukan kembali nama pack sticker
+	
+		if (!stickerName) {
+			console.log(`[LOG] Nama pack sticker kosong.`);
+			return m.reply('Harap masukkan nama pack stiker atau URL yang valid.');
+		}
+	
+		// Cek apakah input adalah URL
+		if (stickerName.includes('https://t.me/addstickers/')) {
+			const packNameFromUrl = stickerName.split('https://t.me/addstickers/')[1];
+			if (!packNameFromUrl) {
+				console.log(`[LOG] URL sticker tidak valid.`);
+				return m.reply('URL stiker tidak valid. Harap masukkan URL yang benar.');
+			}
+	
+			stickerName = packNameFromUrl;  // Mengambil nama pack dari URL
+			console.log(`[LOG] Nama pack diambil dari URL:`, stickerName);
+		}
+	
+		try {
+			console.log(`[LOG] Mengambil data stiker dari API untuk query: ${stickerName}`);
+	
+			const res = await fetch(`https://api.siputzx.my.id/api/d/telegramsticker?query=${stickerName}`);
+			const result = await res.json();
+	
+			if (!result || !Array.isArray(result.stickers)) {
+				console.log(`[LOG] API response tidak valid atau tidak berbentuk array.`);
+				return m.reply('Gagal mengambil stiker. Mungkin nama pack tidak ditemukan atau terjadi masalah dengan API.');
+			}
+	
+			const stickerCount = result.stickers.length;
+			console.log(`[LOG] Ditemukan ${stickerCount} stiker untuk pack: ${stickerName}`);
+	
+			if (stickerCount === 0) {
+				return m.reply('Tidak ditemukan stiker dengan query yang diberikan.');
+			}
+	
+			let stickersToSend = limit.toLowerCase() === 'all' ? result.stickers : result.stickers.slice(0, parseInt(limit) || 1);
+			console.log(`[LOG] Akan mengirim ${stickersToSend.length} stiker dari total ${stickerCount}.`);
+	
+			await m.reply(`Sedang mengirim ${stickersToSend.length} dari ${stickerCount} stiker. Proses ini membutuhkan waktu.`);
+	
+			for (let sticker of stickersToSend) {
+				const fileUrl = sticker.fileUrl;
+				console.log(`[LOG] Mengirim stiker: ${fileUrl}`);
+	
+				// Mengirim stiker tanpa proses pengolahan tambahan
+				await naze.sendSticker(m.chat, { url: fileUrl });
+			}
+	
+			m.reply(`Berhasil mengirim ${stickersToSend.length} dari ${stickerCount} stiker yang mulia. Semoga berkenan.😊`);
+	
+			setLimit(m, db);
+			console.log(`[LOG] Proses selesai, limit dikurangi.`);
+		} catch (error) {
+			console.error(`[ERROR] Terjadi kesalahan saat mengambil stiker:`, error);
+			m.reply('Terjadi kesalahan saat mengambil stiker.');
+		}
+	}
+	break;
+	case 'stele2':  { //stele token pribadi(tidak dihitung)
+		if (!args[0]) return m.reply(`Format salah! 
+		Gunakan perintah:
+		\`${prefix}stele1 (nama pack sticker Telegram atau URL)\``);
+	
+		let link = args[0];
+		if (!link.includes('t.me/addstickers/')) return m.reply(`URL yang Anda masukkan salah! Harap masukkan URL dengan benar.`);
+	
+		m.reply('Sebentar yang mulia, hamba sedang mengambil daftar stiker...');
+	
+		try {
+			let stickerPackName = link.split('addstickers/')[1];
+			console.log(`[INFO] Mengambil sticker pack: ${stickerPackName}`);
+	
+			// Gunakan token bot yang sudah ada
+			const token = '8076926331:AAF250aEaHEgyHQ0URzV6dJRcAbMwsePCdc';
+			let response = await fetch(`https://api.telegram.org/bot${token}/getStickerSet?name=${stickerPackName}`);
+			let result = await response.json();
+	
+			if (!result.ok || !result.result.stickers) {
+				console.error(`[ERROR] Gagal mendapatkan stiker dari pack: ${stickerPackName}`);
+				return m.reply('Hamba gagal mendapatkan stiker dari pack tersebut.');
+			}
+	
+			let stickers = result.result.stickers;
+			let totalStickers = stickers.length;
+			console.log(`[INFO] Ditemukan ${totalStickers} stiker dalam pack ${stickerPackName}`);
+	
+			if (totalStickers === 0) {
+				return m.reply('Hamba tidak menemukan stiker dalam pack tersebut.');
+			}
+	
+			m.reply(`Hamba telah menemukan ${totalStickers} stiker yang mulia. Hamba akan mengirimkan satu per satu...`);
+	
+			for (let i = 0; i < stickers.length; i++) {
+				let fileId = stickers[i].file_id;
+	
+				try {
+					let fileResponse = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`);
+					let fileData = await fileResponse.json();
+	
+					if (!fileData.ok) {
+						console.error(`[ERROR] Gagal mendapatkan file_path untuk stiker ${i + 1}`);
+						continue;
+					}
+	
+					let filePath = fileData.result.file_path;
+					let stickerUrl = `https://api.telegram.org/file/bot${token}/${filePath}`;
+	
+					console.log(`[INFO] Mengirim stiker ${i + 1}/${totalStickers}: ${stickerUrl}`);
+	
+					// Kirimkan stiker menggunakan sendSticker
+					if (stickers[i].is_animated) {
+						// Kirim sticker animasi (video/GIF)
+						await naze.sendSticker(m.chat, stickerUrl);
+					} else {
+						// Kirim sticker biasa
+						await naze.sendSticker(m.chat, stickerUrl);
+					}
+	
+					await new Promise(resolve => setTimeout(resolve, 100)); // Jeda 100ms
+				} catch (sendError) {
+					console.error(`[ERROR] Gagal mengirim stiker ${i + 1}: ${sendError.message}`);
+					m.reply(`⚠️ Gagal mengirim stiker ke-${i + 1}. Lanjut mengirim yang lain...`);
+				}
+			}
+	
+			m.reply('Semua stiker telah dikirim yang mulia! Semoga berkenan.😊');
+		} catch (error) {
+			console.error(`[ERROR] Terjadi kesalahan umum: ${error.message}`);
+			m.reply(`Maaf yang mulia, terjadi kesalahan saat mengambil stiker.\n\n🚨 Error: ${error.message}`);
+		}
+	}
+	break;
+	case 'stele': case 'stickertelegram': case 'stickertele': case 'sticktele': {
+		if (!args[0]) return m.reply(`Format salah! 
+		Gunakan perintah:
+		\`${prefix}stele <jumlah/all> <nama pack sticker Telegram atau URL>\``);
+		
+		let [limit, ...stickerName] = args;
+		stickerName = stickerName.join(' ');  // Menyatukan kembali nama pack sticker
+		
+		// Cek apakah input adalah URL
+		if (stickerName.includes('https://t.me/addstickers/')) {
+			const packNameFromUrl = stickerName.split('https://t.me/addstickers/')[1];
+			if (!packNameFromUrl) {
+				return m.reply('URL stiker tidak valid. Harap masukkan URL yang benar.');
+			}
+			stickerName = packNameFromUrl;
+		}
+	
+		m.reply('Sebentar yang mulia, hamba sedang mengambil daftar stiker Telegram...');
+		
+		try {
+			let stickerPackName = stickerName;
+			console.log(`[INFO] Mengambil sticker pack: ${stickerPackName}`);
+	
+			// Gunakan token bot yang sudah ada
+			const token = '8076926331:AAF250aEaHEgyHQ0URzV6dJRcAbMwsePCdc';
+			let response = await fetch(`https://api.telegram.org/bot${token}/getStickerSet?name=${stickerPackName}`);
+			let result = await response.json();
+	
+			if (!result.ok || !result.result.stickers) {
+				console.error(`[ERROR] Gagal mendapatkan stiker dari pack: ${stickerPackName}`);
+				return m.reply('Hamba gagal mendapatkan stiker dari pack tersebut.');
+			}
+	
+			let stickers = result.result.stickers;
+			let totalStickers = stickers.length;
+			console.log(`[INFO] Ditemukan ${totalStickers} stiker dalam pack ${stickerPackName}`);
+	
+			if (totalStickers === 0) {
+				return m.reply('Hamba tidak menemukan stiker dalam pack tersebut.');
+			}
+	
+			// Tentukan jumlah stiker yang akan dikirim
+			let stickersToSend = (limit.toLowerCase() === 'all') ? stickers : stickers.slice(0, parseInt(limit) || 1);
+			m.reply(`Hamba akan mengirimkan ${stickersToSend.length} stiker dari total ${totalStickers} sticker.`);
+	
+			for (let i = 0; i < stickersToSend.length; i++) {
+				let fileId = stickersToSend[i].file_id;
+				try {
+					let fileResponse = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`);
+					let fileData = await fileResponse.json();
+	
+					if (!fileData.ok) {
+						console.error(`[ERROR] Gagal mendapatkan file_path untuk stiker ${i + 1}`);
+						continue;
+					}
+	
+					let filePath = fileData.result.file_path;
+					let stickerUrl = `https://api.telegram.org/file/bot${token}/${filePath}`;
+	
+					console.log(`[INFO] Mengirim stiker ${i + 1}/${stickersToSend.length}: ${stickerUrl}`);
+	
+					// Kirimkan stiker
+					await naze.sendSticker(m.chat, stickerUrl);
+					await new Promise(resolve => setTimeout(resolve, 100)); // Jeda 100ms
+				} catch (sendError) {
+					console.error(`[ERROR] Gagal mengirim stiker ${i + 1}: ${sendError.message}`);
+					m.reply(`⚠️ Gagal mengirim stiker ke-${i + 1}. Lanjut mengirim yang lain...`);
+				}
+			}
+	
+			m.reply(`Semua stiker yang diminta telah dikirim yang mulia! Semoga berkenan.😊`);
+		} catch (error) {
+			console.error(`[ERROR] Terjadi kesalahan umum: ${error.message}`);
+			m.reply(`Maaf yang mulia, terjadi kesalahan saat mengambil stiker.\n\n🚨 Error: ${error.message}`);
+		}
+	}
+	break;
+	case 'sticker': case 'stiker': case 's': case 'stickergif': case 'stikergif': case 'sgif': {
+		if (!/image|video|sticker/.test(quoted.type)) return m.reply(`Kirim/reply gambar/video/gif dengan caption ${prefix + command}\nDurasi Image/Video/Gif 1-9 Detik`)
+		let media = await (m.quoted ? m.quoted.download() : m.download())
+		if (/image|webp/.test(mime)) {
+			m.reply(mess.wait)
+			if (text == 'meta') {
+				await naze.sendAsSticker(m.chat, media, m, { packname: packname, author: author, isAvatar: 1 })
+			} else {
+				await naze.sendAsSticker(m.chat, media, m, { packname: packname, author: author })
+			}
+		} else if (/video/.test(mime)) {
+			if ((quoted.msg || quoted).seconds > 11) return m.reply('Maksimal 10 detik!')
+			m.reply(mess.wait)
+			await naze.sendAsSticker(m.chat, media, m, { packname: packname, author: author })
+		} else {
+			m.reply(`Kirim/reply gambar/video/gif dengan caption ${prefix + command}\nDurasi Image/Video/Gif 1-9 Detik`)
+		}
+	}
+	break
+	case 'stickercrop':case 'scrop':  {
+		if (!/image|video|sticker/.test(quoted.type)) return m.reply(`Kirim/reply gambar/video/gif dengan caption ${prefix + command}\nDurasi Image/Video/Gif 1-9 Detik`);
+	
+		let media = await (m.quoted ? m.quoted.download() : m.download());
+		const mediaPath = path.join(__dirname, 'data', `media.${mime.split('/')[1]}`);
+		fs.writeFileSync(mediaPath, media);
+	
+		// Function to check aspect ratio
+		const checkAspectRatio = async (mediaPath) => {
+			let metadata = await sharp(mediaPath).metadata();
+			return metadata.width / metadata.height;
+		};
+	
+		// Function to crop image into 1:1 aspect ratio
+		const cropImage = async (mediaPath, output) => {
+			let metadata = await sharp(mediaPath).metadata();
+			let size = Math.min(metadata.width, metadata.height);  // Use the smallest dimension
+			await sharp(mediaPath)
+				.resize(size, size, { fit: 'cover' })  // Crop to square (1:1 aspect ratio)
+				.toFile(output);
+		};
+	
+		// Function to crop video into 1:1 aspect ratio
+		const cropVideo = async (mediaPath, output) => {
+			return new Promise((resolve, reject) => {
+				ffmpeg(mediaPath)
+					.videoFilters('crop=in_w:in_w') // Crop video to square (1:1 aspect ratio)
+					.on('end', () => resolve(true))
+					.on('error', (err) => reject(err))
+					.save(output);
+			});
+		};
+	
+		const aspectRatio = await checkAspectRatio(mediaPath);
+		const output = path.join(__dirname, 'temp', `output.${mime.split('/')[1]}`);
+	
+		try {
+			if (/image|webp/.test(mime)) {
+				m.reply(mess.wait);
+				await cropImage(mediaPath, output);
+				media = fs.readFileSync(output);
+				await naze.sendAsSticker(m.chat, media, m, { packname: packname, author: author });
+			} else if (/video/.test(mime)) {
+				if ((quoted.msg || quoted).seconds > 11) return m.reply('Maksimal 10 detik!');
+				m.reply(mess.wait);
+				await cropVideo(mediaPath, output);
+				media = fs.readFileSync(output);
+				await naze.sendAsSticker(m.chat, media, m, { packname: packname, author: author });
+			} else {
+				m.reply(`Kirim/reply gambar/video/gif dengan caption ${prefix + command}\nDurasi Image/Video/Gif 1-9 Detik`);
+			}
+		} catch (err) {
+			console.error(err);
+			m.reply('Terjadi kesalahan saat memproses media.');
+		} finally {
+			// Clean up temporary files
+			if (fs.existsSync(mediaPath)) fs.unlinkSync(mediaPath);
+			if (fs.existsSync(output)) fs.unlinkSync(output);
+		}
+	}
+	break;
+	case 'stickerly': {
+		if (!text) return m.reply('Masukkan URL stickerly yang mulia.\n\n*Contoh:* stickerly https://sticker.ly/s/J9TZWA');
+	
+		let apiUrl = `https://api.siputzx.my.id/api/d/stickerly?url=${encodeURIComponent(text)}`;
+		
+		try {
+			m.reply('_Sebentar yang mulia, hamba sedang mengambil daftar stiker..._');
+	
+			let response = await fetch(apiUrl);
+			let result = await response.json();
+	
+			if (!result.status || !result.data || !result.data.stickers) {
+				return m.reply('_Maaf yang mulia, hamba gagal mendapatkan stiker dari URL tersebut._');
+			}
+	
+			let stickers = result.data.stickers;
+			let totalStickers = stickers.length;
+	
+			m.reply(`_Hamba telah menemukan ${totalStickers} stiker yang mulia, mohon bersabar, hamba akan mengirimnya satu per satu..._`);
+	
+			for (let stickerUrl of stickers) {
+				await naze.sendMessage(m.chat, { sticker: { url: stickerUrl } }, { quoted: m });
+				await new Promise(resolve => setTimeout(resolve, 1000)); // Jeda 1 detik antar sticker
+			}
+	
+			m.reply('_Semua stiker telah dikirim yang mulia! Semoga berkenan._');
+	
+		} catch (error) {
+			console.error(error);
+			m.reply('_Maaf yang mulia, terjadi kesalahan saat mengambil stiker. Coba lagi nanti._');
+		}
+	}
+	break;	
+	case 'stickerwm': case 'swm': case 'curi': case 'colong': case 'take': case 'stickergifwm': case 'sgifwm': {
+		if (!/image|video|sticker/.test(quoted.type)) return m.reply(`Kirim/reply gambar/video/gif dengan caption ${prefix + command}\nDurasi Image/Video/Gif 1-9 Detik`)
+		let media = await (m.quoted ? m.quoted.download() : m.download())
+		let teks1 = text.split`|`[0] ? text.split`|`[0] : ' '
+		let teks2 = text.split`|`[1] ? text.split`|`[1] : ' '
+		if (/image|webp/.test(mime)) {
+			m.reply(mess.wait)
+			if (text == 'meta') {
+				await naze.sendAsSticker(m.chat, media, m, { packname: teks1, author: teks2, isAvatar: 1 })
+			} else {
+				await naze.sendAsSticker(m.chat, media, m, { packname: teks1, author: teks2 })
+			}
+		} else if (/video/.test(mime)) {
+			if ((quoted.msg || quoted).seconds > 11) return m.reply('Maksimal 10 detik!')
+			m.reply(mess.wait)
+			await naze.sendAsSticker(m.chat, media, m, { packname: teks1, author: teks2 })
+		} else {
+			m.reply(`Kirim/reply gambar/video/gif dengan caption ${prefix + command}\nDurasi Video/Gif 1-9 Detik`)
+		}
+	}
+	break
+	//==================================================================
+	// toolsmenu = 16
+	case 'base64toteks': {
+		if (!text) return m.reply('Masukkan teks dalam format Base64 yang ingin didekode!Contoh: \n.base64decode SGVsbG8gV29ybGQ=');
+
+		await m.reply(mess.wait);
+		
+		try {
+			let res = await fetchJson(`https://api.siputzx.my.id/api/tools/base642text?base64=${encodeURIComponent(text)}`);
+			if (!res.status) return m.reply('Gagal mendekode Base64. Pastikan input benar.');
+			
+			m.reply(`🔠 *Base64 Decode*
+
+	📥 Input: ${text}
+	📤 Output: ${res.data.text}`);
+		} catch (error) {
+			console.error('Error:', error);
+			m.reply('Terjadi kesalahan saat mendekode Base64. Coba lagi nanti.');
+		}
+	}
+	break;
+	case 'get': case 'fetch':  {
+		if (!/^https?:\/\//.test(text)) return m.reply('Awali dengan http:// atau https://');
+		const { data } = await axios.get('https://api.ipify.org?format=json')
+		try {
+			const res = await axios.get(isUrl(text) ? isUrl(text)[0] : text)
+			if (!/json|html|plain/.test(res.headers['content-type'])) {
+				await m.reply(text)
+			} else {
+				m.reply(util.format(res.data).replace(new RegExp(data.ip.replace(/\./g, '\\.'), 'g'), 'xxx-xxx-xxx-xxx'))
+			}
+		} catch (e) {
+			m.reply(util.format(e).replace(new RegExp(data.ip.replace(/\./g, '\\.'), 'g'), 'xxx-xxx-xxx-xxx'))
+		}
+	}
+	break
+	case 'getexif': {
+		if (!m.quoted) return m.reply(`Reply sticker\nDengan caption ${prefix + command}`)
+		if (!/sticker|webp/.test(quoted.type)) return m.reply(`Reply sticker\nDengan caption ${prefix + command}`)
+		const { Image } = require('node-webpmux')
+		const img = new Image()
+		await img.load(await m.quoted.download())
+		m.reply(util.format(JSON.parse(img.exif.slice(22).toString())))
+	}
+	break
+	case 'gitclone': case 'git':  {
+		if (!args[0]) return m.reply(`Example: ${prefix + command} https://github.com/nazedev/hitori`)
+		if (!isUrl(args[0]) && !args[0].includes('github.com')) return m.reply('Gunakan Url Github!')
+		let [, user, repo] = args[0].match(/(?:https|git)(?::\/\/|@)github\.com[\/:]([^\/:]+)\/(.+)/i) || []
+		try {
+			naze.sendMessage(m.chat, { document: { url: `https://api.github.com/repos/${user}/${repo}/zipball` }, fileName: repo + '.zip', mimetype: 'application/zip' }, { quoted: m }).catch((e) => m.reply(mess.error))
+		} catch (e) {
+			m.reply('Gagal!')
+		}
+	}
+	break
+	case 'hd':case 'tohd': case 'remini':  {
+		if (/image/.test(mime)) {
+			const { remini } = require('./lib/remini');
+			let media = await (m.quoted ? m.quoted.download() : m.download());
+			
+			// Proses HD pertama
+			try {
+				let enhanced1 = await remini(media, 'enhance');
+				m.reply('_⏳ Proses HD..._');
+				
+				// Proses HD kedua
+				let enhanced2 = await remini(enhanced1, 'enhance');
+				
+				// Kirim hasil HD dua kali
+				await naze.sendMessage(m.chat, { image: enhanced2, caption: '_gambar sudah di HD kan_' }, { quoted: m });
+			} catch (e) {
+				m.reply(`❌ Gagal meningkatkan kualitas gambar: ${e.message}`);
+			}
+		} else {
+			m.reply(`Kirim/Reply gambar dengan format\nExample: ${prefix + command}`);
+		}
+	}
+	break;
+	case "iplookup":
+		if (!text) return m.reply("Masukkan alamat IP yang ingin dicari!\nContoh: .iplookup 73.9.149.180");
+		
+		let ip_addr = text.trim();
+		let apiKey = "A50K0DsP6NRbwd8Dsro7Yg==7rpgFFwtSv687zai"; // API Key kamu
+		let urlnya = `https://api.api-ninjas.com/v1/iplookup?address=${ip_addr}`;
+	
+		try {
+			m.reply("🔍 Sedang mencari informasi IP...");
+			
+			let response = await axios.get(urlnya, {
+				headers: { "X-Api-Key": apiKey }
+			});
+	
+			if (response.status === 200) {
+				let data = response.data;
+				let hasil = `🌍 *Informasi IP:*\n\n` +
+							`🖥 *IP Address:* ${data.address}\n` +
+							`🌎 *Negara:* ${data.country}\n` +
+							`🏙 *Kota:* ${data.city || "Tidak tersedia"}\n` +
+							`📡 *ISP:* ${data.isp || "Tidak tersedia"}\n` +
+							`📍 *Latitude:* ${data.latitude}\n` +
+							`📍 *Longitude:* ${data.longitude}\n` +
+							`🗺 *Timezone:* ${data.timezone}`;
+				
+				m.reply(hasil);
+			} else {
+				m.reply(`⚠️ Gagal mendapatkan data IP.\nError: ${response.status} - ${response.statusText}`);
+			}
+		} catch (error) {
+			m.reply(`❌ Terjadi kesalahan: ${error.message}`);
+		}
+		break;	
+	case 'ip-location': {
+				try {
+					const fetch = require('node-fetch');
+			
+					if (!args[0]) return m.reply('⚠️ Mohon masukkan alamat IP yang ingin dicari!\n\nContoh: *.ip-location 8.8.8.8*');
+			
+					const ip = args[0];
+					const apiUrl = `https://geo.ipify.org/api/v2/country?apiKey=at_TGhZdkiuCMhbjYobOp3ztoMweRyYE&ipAddress=${ip}`;
+			
+					const response = await fetch(apiUrl);
+					if (!response.ok) throw new Error(`Terjadi kesalahan: ${response.status}`);
+			
+					const data = await response.json();
+					if (!data.ip) throw new Error('IP tidak ditemukan.');
+			
+					let message = `📌 *Informasi IP: ${data.ip}*\n\n`;
+					message += `🌍 *Negara:* ${data.location?.country || 'Tidak diketahui'}\n`;
+					message += `🏙 *Region:* ${data.location?.region || 'Tidak diketahui'}\n`;
+					message += `🕒 *Zona Waktu:* GMT${data.location?.timezone || 'Tidak diketahui'}\n\n`;
+					message += `📡 *ISP:* ${data.isp || 'Tidak diketahui'}\n`;
+			
+					// Cek apakah data.as ada sebelum mengaksesnya
+					if (data.as) {
+						message += `🔍 *ASN:* ${data.as.asn || 'Tidak diketahui'}\n`;
+						message += `📌 *Nama ASN:* ${data.as.name || 'Tidak diketahui'}\n`;
+						message += `🌐 *Domain ASN:* ${data.as.domain || 'Tidak diketahui'}\n`;
+						message += `🛜 *Route:* ${data.as.route || 'Tidak diketahui'}\n\n`;
+					}
+			
+					if (data.domains?.length > 0) {
+						message += `🔗 *Domain Terkait:*\n`;
+						data.domains.slice(0, 5).forEach((domain, index) => {
+							message += `${index + 1}. ${domain}\n`;
+						});
+					}
+			
+					await naze.sendMessage(m.chat, { text: message });
+				} catch (error) {
+					console.error(error);
+					await naze.sendMessage(m.chat, { text: `⚠️ Terjadi kesalahan saat mengambil data lokasi IP.` });
+				}
+			}
+			break;
+	case 'kelompokacak': {
+		if (!m.isGroup) return m.reply('Perintah ini hanya bisa digunakan di dalam grup!');
+		
+		let jumlahPerKelompok = parseInt(args[0]);
+		if (isNaN(jumlahPerKelompok)) return m.reply('Harap masukkan jumlah anggota per kelompok yang benar! Contoh: \n*kelompokacak 5*');
+	
+		// Ambil semua ID anggota grup
+		let participants = m.metadata.participants.map(a => a.id);
+		let totalUser = participants.length;
+	
+		// Acak urutan anggota
+		participants = participants.sort(() => Math.random() - 0.5);
+	
+		let hasilKelompok = [];
+		for (let i = 0; i < totalUser; i += jumlahPerKelompok) {
+			hasilKelompok.push(participants.slice(i, i + jumlahPerKelompok));
+		}
+	
+		// Gabungkan sisa anggota ke kelompok terakhir jika ada
+		if (hasilKelompok[hasilKelompok.length - 1].length < jumlahPerKelompok) {
+			let sisa = hasilKelompok.pop();
+			hasilKelompok[hasilKelompok.length - 1] = hasilKelompok[hasilKelompok.length - 1].concat(sisa);
+		}
+	
+		// Format hasil output kelompok
+		let output = '';
+		hasilKelompok.forEach((kelompok, index) => {
+			output += `*Kelompok ${index + 1}*\n`;
+			kelompok.forEach(user => {
+				output += `@${user.split('@')[0]}\n`;
+			});
+			output += '\n';
+		});
+	
+		// Kirim hasil dengan mention ke semua peserta
+		naze.sendMessage(m.chat, { text: output, mentions: participants }, { quoted: m });
+	}
+	break;
+	case 'readmore': {
+		let teks1 = text.split`|`[0] ? text.split`|`[0] : ''
+		let teks2 = text.split`|`[1] ? text.split`|`[1] : ''
+		m.reply(teks1 + readmore + teks2)
+	}
+	break
+	case 'shorturl': case 'tinyurl':  case 'shortlink': {
+		if (!text || !isUrl(text)) return m.reply(`Example: ${prefix + command} https://github.com/nazedev/hitori`)
+		try {
+			let anu = await axios.get('https://tinyurl.com/api-create.php?url=' + text)
+			m.reply('Url : ' + anu.data)
+		} catch (e) {
+			m.reply('Gagal!')
+		}
+	}
+	break
+	case 'statistikdata': {
+		if (!args.length) return m.reply("Harap masukkan nilai data, contoh: statistikdata 23 45 65 43 33");
+	
+		let data = args.map(Number);
+		if (data.some(isNaN)) return m.reply("Semua nilai harus berupa angka.");
+	
+		// 1. Rata-rata (mean)
+		let total = data.reduce((sum, value) => sum + value, 0);
+		let mean = total / data.length;
+	
+		// 2. Median
+		let sorted = [...data].sort((a, b) => a - b);
+		let middle = Math.floor(data.length / 2);
+		let median = data.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+	
+		// 3. Modus
+		let frequency = {};
+		let maxFreq = 0;
+		let mode = [];
+		for (let num of data) {
+			frequency[num] = (frequency[num] || 0) + 1;
+			if (frequency[num] > maxFreq) {
+				maxFreq = frequency[num];
+				mode = [num];
+			} else if (frequency[num] === maxFreq) {
+				mode.push(num);
+			}
+		}
+		mode = [...new Set(mode)]; // Remove duplicates
+	
+		// 4. Range
+		let range = Math.max(...data) - Math.min(...data);
+	
+		// 5. Nilai tertinggi dan terendah
+		let max = Math.max(...data);
+		let min = Math.min(...data);
+	
+		// 6. Standar Deviasi
+		let varianceSum = data.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0);
+		let variance = varianceSum / data.length;
+		let stdDev = Math.sqrt(variance);
+	
+		// Menyusun output perhitungan
+		let output = `
+*Data yang dimasukkan:* ${data.join(", ")}
+
+1. Rata-rata (Mean): ${mean.toFixed(2)}
+	\[Rata-rata = ( ${data.join(" + ")} ) / ${data.length} = ${total} / ${data.length} = ${mean.toFixed(2)}\]
+
+2. Median: ${median.toFixed(2)}
+	\[Median = ${sorted.length % 2 === 0 ? `( ${sorted[middle - 1]} + ${sorted[middle]} ) / 2 = ${median.toFixed(2)}` : `${sorted[middle]} = ${median.toFixed(2)}`}\]
+
+3. Modus: ${mode.length > 0 ? mode.join(", ") : "Tidak ada"}
+	${mode.length > 0 ? `Modus adalah angka yang paling sering muncul: ${mode.join(", ")}` : `Tidak ada modus karena semua angka muncul sama rata.`}
+
+4. Range: ${range}
+	\[Range = ${max} - ${min} = ${range}\]
+
+5. Nilai Tertinggi: ${max}
+	Nilai tertinggi adalah ${max}.
+
+6. Nilai Terendah: ${min}
+	Nilai terendah adalah ${min}.
+
+*Langkah-langkah perhitungan Standar Deviasi:*
+
+1. Hitung rata-rata (mean): 
+	\[Mean = ( ${data.join(" + ")} ) / ${data.length} = ${mean.toFixed(2)}\]
+
+2. Kurangkan setiap nilai dengan rata-rata, lalu kuadratkan hasilnya:
+${
+		data.map(value => `   (${value} - ${mean.toFixed(2)})² = ${(Math.pow(value - mean, 2)).toFixed(2)}`).join("\n")
+	}
+
+3. Jumlahkan semua hasil kuadrat:
+	\[Jumlah = ${varianceSum.toFixed(2)}\]
+
+4. Bagi hasil jumlah kuadrat dengan jumlah data:
+	\[Variance = ${varianceSum.toFixed(2)} / ${data.length} = ${variance.toFixed(2)}\]
+
+5. Ambil akar kuadrat dari variance:
+	\[Standar Deviasi = √${variance.toFixed(2)} = ${stdDev.toFixed(2)}\]
+
+*Standar Deviasi (σ):* ${stdDev.toFixed(2)}
+	`;
+	
+		m.reply(output);
+	}
+	break;
+	case 'style':     {
+		if (!text) return m.reply(`Example: ${prefix + command} bangsulstart`)
+		let anu = await styletext(text)
+		let txt = anu.map(a => `*${a.name}*\n${a.result}`).join`\n\n`
+		m.reply(txt)
+		}
+		break
+	case 'tekstobase64': {
+			if (!text) return m.reply('Masukkan teks yang ingin dikonversi ke Base64! Contoh: \n.base64encode Hello World');
+	
+			await m.reply(mess.wait);
+			
+			try {
+				let res = await fetchJson(`https://api.siputzx.my.id/api/tools/text2base64?text=${encodeURIComponent(text)}`);
+				if (!res.status) return m.reply('Gagal mengonversi teks ke Base64.');
+				
+				m.reply(`🔠 *Base64 Encode*
+	
+		📥 Input: ${text}
+		📤 Output: ${res.data.base64}`);
+			} catch (error) {
+				console.error('Error:', error);
+				m.reply('Terjadi kesalahan saat mengonversi ke Base64. Coba lagi nanti.');
+			}
+		}
+		break;
+	case 'translate': case 'tr': {
+		// Objek untuk menghubungkan kode bahasa dengan nama negara/bahasa\
+		const barisjudul = '╔═〇';
+		const tutupjudul = '╠═════════〇';
+		const penutup    = '╚═════════════════〇';
+		const barisfitur = '╠»';
+		const fiturtutup = '╚»';
+
+		const bahasaList = {
+			af: 'Afrikaans 🇿🇦',
+			ar: 'Arab 🇸🇦',
+			zh: 'Chinese 🇨🇳',
+			en: 'English 🇬🇧',
+			'en-us': 'English (United States) 🇺🇸',
+			fr: 'French 🇫🇷',
+			de: 'German 🇩🇪',
+			hi: 'Hindi 🇮🇳',
+			hu: 'Hungarian 🇭🇺',
+			is: 'Icelandic 🇮🇸',
+			id: 'Indonesian 🇮🇩',
+			it: 'Italian 🇮🇹',
+			ja: 'Japanese 🇯🇵',
+			ko: 'Korean 🇰🇷',
+			la: 'Latin 🇻🇦',
+			no: 'Norwegian 🇳🇴',
+			pt: 'Portuguese 🇵🇹',
+			'pt-br': 'Portuguese (Brazil) 🇧🇷',
+			ro: 'Romanian 🇷🇴',
+			ru: 'Russian 🇷🇺',
+			sr: 'Serbian 🇷🇸',
+			es: 'Spanish 🇪🇸',
+			sv: 'Swedish 🇸🇪',
+			ta: 'Tamil 🇮🇳',
+			th: 'Thai 🇹🇭',
+			tr: 'Turkish 🇹🇷',
+			vi: 'Vietnamese 🇻🇳'
+		};
+	
+		// Daftar kode bahasa dengan emoji bendera dan bingkai
+		let list_tr = `
+${barisjudul} *🌍 Kode Bahasa*
+${tutupjudul}
+${barisfitur} 🇿🇦 af : Afrikaans
+${barisfitur} 🇸🇦 ar : Arab
+${barisfitur} 🇨🇳 zh : Chinese
+${barisfitur} 🇬🇧 en : English
+${barisfitur} 🇺🇸 en-us : English (United States)
+${barisfitur} 🇫🇷 fr : French
+${barisfitur} 🇩🇪 de : German
+${barisfitur} 🇮🇳 hi : Hindi
+${barisfitur} 🇭🇺 hu : Hungarian
+${barisfitur} 🇮🇸 is : Icelandic
+${barisfitur} 🇮🇩 id : Indonesian
+${barisfitur} 🇮🇹 it : Italian
+${barisfitur} 🇯🇵 ja : Japanese
+${barisfitur} 🇰🇷 ko : Korean
+${barisfitur} 🇻🇦 la : Latin
+${barisfitur} 🇳🇴 no : Norwegian
+${barisfitur} 🇵🇹 pt : Portuguese
+${barisfitur} 🇧🇷 pt-br : Portuguese (Brazil)
+${barisfitur} 🇷🇴 ro : Romanian
+${barisfitur} 🇷🇺 ru : Russian
+${barisfitur} 🇷🇸 sr : Serbian
+${barisfitur} 🇪🇸 es : Spanish
+${barisfitur} 🇸🇪 sv : Swedish
+${barisfitur} 🇮🇳 ta : Tamil
+${barisfitur} 🇹🇭 th : Thai
+${barisfitur} 🇹🇷 tr : Turkish
+${barisfitur} 🇻🇳 vi : Vietnamese
+${penutup}
+	
+✍️ *keterangan penggunaan*:
+.translete (kode bahasa) (teks/reply pesan)\n
+Contoh: *.translete en Halo*`;
+	
+		// Jika user hanya mengetik 'tr' atau 'translate', tampilkan list bahasa
+		if (!text || args.length === 0) {
+			return m.reply(list_tr);
+		} else {
+			// Proses translasi
+			if (!m.quoted && (!text || !args[1])) return m.reply(`Kirim/reply teks dengan caption *.${command} (kode bahasa) (teks/reply pesan)*`);
+			
+			let lang = args[0] ? args[0] : 'id';  // Gunakan bahasa 'id' sebagai default jika tidak ada
+			let teks = args[1] ? args.slice(1).join(' ') : m.quoted.text;  // Ambil teks dari argumen atau reply
+			try {
+				let hasil = await translate(teks, { to: lang, autoCorrect: true });
+				
+				// Ambil nama bahasa dari bahasaList, jika tidak ditemukan, tampilkan kode bahasa
+				let namaBahasa = bahasaList[lang] || lang.toUpperCase();
+	
+				// Hasil terjemahan dengan gaya menarik
+				let hasil_tr = `
+*Dari*  : ${m.quoted ? m.quoted.text : teks}
+*Ke*     : ${namaBahasa}
+				
+${barisjudul} *Hasil*
+${fiturtutup}  ${hasil[0]}`;
+	
+				m.reply(hasil_tr);
+			} catch (e) {
+				m.reply(`❌ *Kode bahasa ${lang} tidak ditemukan!*`);
+			}
+		}
+	}
+	break;
+	case 'url-lookup': {
+		if (!args[0]) return m.reply("⚠️ Format salah! Harap masukkan URL yang ingin diperiksa.\n\n📌 *Contoh:* .url-lookup example.com");
+	
+		let targetUrl = args[0];
+		let iniapi = "A50K0DsP6NRbwd8Dsro7Yg==7rpgFFwtSv687zai"; // API Key
+		let iniurl = `https://api.api-ninjas.com/v1/urllookup?url=${encodeURIComponent(targetUrl)}`;
+	
+		try {
+			m.reply("🔍 Sedang mencari informasi URL... Mohon tunggu sebentar!");
+	
+			let response = await axios.get(iniurl, {
+				headers: { "X-Api-Key": iniapi }
+			});
+	
+			if (response.status === 200 && response.data.is_valid) {
+				let data = response.data;
+				let hasil = `🌐 *Hasil Pencarian URL*\n\n` +
+							`🔗 *URL:* ${data.url}\n` +
+							`✅ *Valid:* ${data.is_valid ? "Ya" : "Tidak"}\n` +
+							`🌍 *Negara:* ${data.country} (${data.country_code})\n` +
+							`📍 *Wilayah:* ${data.region} (${data.region_code})\n` +
+							`🏙️ *Kota:* ${data.city}\n` +
+							`📮 *Kode Pos:* ${data.zip}\n` +
+							`🕰 *Zona Waktu:* ${data.timezone}\n` +
+							`📡 *ISP:* ${data.isp}\n` +
+							`📌 *Lokasi:* ${data.lat}, ${data.lon}`;
+	
+				m.reply(hasil);
+			} else {
+				m.reply(`⚠️ URL tidak valid atau tidak ditemukan.\n🔗 *URL:* ${targetUrl}`);
+			}
+		} catch (error) {
+			m.reply(`❌ Terjadi kesalahan saat mengambil data: ${error.message}`);
+		}
+	}
+	break;
+	case "validasiphone":
+		if (!text) return m.reply("Masukkan nomor telepon yang ingin divalidasi!\nContoh: .validasiphone +12065550100");
+		
+		let number = encodeURIComponent(text.trim());
+		let apinya = "A50K0DsP6NRbwd8Dsro7Yg==7rpgFFwtSv687zai"; // API Key kamu
+		let iniurl = `https://api.api-ninjas.com/v1/validatephone?number=${number}`;
+	
+		try {
+			m.reply("📞 Sedang memeriksa nomor telepon...");
+			
+			let response = await axios.get(iniurl, {
+				headers: { "X-Api-Key": apinya }
+			});
+	
+			if (response.status === 200) {
+				let data = response.data;
+	
+				let hasil = `📲 *Validasi Nomor Telepon:*\n\n` +
+							`✅ *Valid:* ${data.is_valid ? "Ya" : "Tidak"}\n` +
+							`📑 *Format Benar:* ${data.is_formatted_properly ? "Ya" : "Tidak"}\n` +
+							`🌍 *Negara:* ${data.country || "Tidak tersedia"}\n` +
+							`📍 *Lokasi:* ${data.location || "Tidak tersedia"}\n` +
+							`⏰ *Zona Waktu:* ${data.timezones ? data.timezones.join(", ") : "Tidak tersedia"}\n` +
+							`📞 *Format Nasional:* ${data.format_national || "Tidak tersedia"}\n` +
+							`🌎 *Format Internasional:* ${data.format_international || "Tidak tersedia"}\n` +
+							`📟 *Format E164:* ${data.format_e164 || "Tidak tersedia"}\n` +
+							`🔢 *Kode Negara:* ${data.country_code || "Tidak tersedia"}`;
+				
+				m.reply(hasil);
+			} else {
+				m.reply(`⚠️ Gagal mendapatkan data nomor telepon.\nError: ${response.status} - ${response.statusText}`);
+			}
+		} catch (error) {
+			m.reply(`❌ Terjadi kesalahan: ${error.message}`);
+		}
+		break;
 	//==================================================================
 	// Menu
 	case 'menu': 		 {	
@@ -5767,12 +7026,15 @@ ${barisfitur} ${prefix}allmenu                   \`(total ${totalfitur} fitur)\`
 ${barisfitur} ${prefix}aimenu                    \`(total ${aimenu} fitur)\`
 ${barisfitur} ${prefix}botmenu                 \`(total ${botmenu} fitur)\`
 ${barisfitur} ${prefix}downloadmenu   \`(total ${downloadmenu} fitur)\`
+${barisfitur} ${prefix}financemenu            \`(total ${financemenu} fitur)\`
 ${barisfitur} ${prefix}funmenu                \`(total ${funmenu} fitur)\`
 ${barisfitur} ${prefix}gamemenu           \`(total ${gamemenu} fitur)\`
 ${barisfitur} ${prefix}grupmenu             \`(total ${grupmenu} fitur)\`
+${barisfitur} ${prefix}konvertmenu    \`(total ${konvertmenu} fitur)\`
 ${barisfitur} ${prefix}ownermenu          \`(total ${ownermenu} fitur)\`
 ${barisfitur} ${prefix}quotesmenu         \`(total ${quotesmenu} fitur)\`
 ${barisfitur} ${prefix}searchmenu         \`(total ${searchmenu} fitur)\`
+${barisfitur} ${prefix}stickermenu    \`(total ${stickermenu} fitur)\`
 ${barisfitur} ${prefix}toolsmenu             \`(total ${toolsmenu} fitur)\`
 ${penutup}
 `;
@@ -5955,6 +7217,7 @@ ${barisfitur} ${prefix}read (reply media 1x lihat)
 ${barisfitur} ${prefix}tagme 
 ${barisfitur} ${prefix}runtime 
 ${barisfitur} ${prefix}speedtest 
+${barisfitur} ${prefix}static
 ${barisfitur} ${prefix}totalfitur 
 ${barisfitur} ${prefix}totaluser 
 ${barisfitur} ${prefix}request (teks) 
@@ -6010,14 +7273,73 @@ ${penutup}
 
 ${barisjudul} *DOWNLOAD MENU* \`(total ${downloadmenu} fitur)\`
 ${tutupjudul}
+${barisfitur} ${prefix}capcut (url capcut) 
+${barisfitur} ${prefix}facebookdl (url facebook) 
 ${barisfitur} ${prefix}gdrive (url google drive) 
 ${barisfitur} ${prefix}ig (url instagram) 
 ${barisfitur} ${prefix}mediafire (url mediafire) 
 ${barisfitur} ${prefix}tt (url tiktok) 
+${barisfitur} ${prefix}twitterdl (url twitter) 
 ${barisfitur} ${prefix}ttaudio (url tiktok) 
 ${barisfitur} ${prefix}ytmp3 (url youtube) 
 ${barisfitur} ${prefix}ytmp4 (url youtube) 
 ${penutup}`
+			// Mengirimkan pesan
+		await naze.sendMessage(m.chat, {
+			text: responseMessage,
+			contextInfo: {
+				externalAdReply: {
+					title: 'BANGSULBOTZ🤖',
+					body: 'Bot Whatsapp',
+					showAdAttribution: true,
+					thumbnailUrl: my.thumb, // Menggunakan URL gambar sebagai thumbnail
+					mediaType: 1,
+					previewType: 0,
+					renderLargerThumbnail: true,
+					mediaUrl: my.gh, // URL GitHub yang dituju
+					sourceUrl: my.gh, // Sumber URL GitHub
+				}
+			}
+		},{quoted: m});
+	}
+	break;
+	case 'financemenu':  {
+		let timestamp = speed();
+		let latensi = speed() - timestamp;
+		let neww = performance.now();
+		let oldd = performance.now();
+		const barisjudul = '╔═〇';
+		const tutupjudul = '╠═════════〇';
+		const barisfitur = '╠»';
+		const penutup    = '╚═════════════════〇';
+		// Format tampilan pesan
+		let responseMessage =
+`${barisjudul} *USER INFO* 
+${tutupjudul}
+${barisfitur} *Nama* : ${m.pushName ? m.pushName : 'Tanpa Nama'}
+${barisfitur} *Id*         : ${m.sender.split('@')[0]}
+${barisfitur} *User*   : ${isVip ? 'VIP' : isPremium ? 'PREMIUM' : 'FREE'}
+${penutup}
+
+${barisjudul} *BOT INFO* 
+${tutupjudul}
+${barisfitur} *Nama Bot*          : ${botname}
+${barisfitur} *Pengembang*   : BANGSULSTART
+${barisfitur} *Total Fitur*         : ${totalfitur}
+${barisfitur} *Mode*                  : ${naze.public ? 'Publik 🌍' : 'Self 🔒'}
+${barisfitur} *Pengguna*         : ${Object.keys(global.db.users).length}
+${penutup}
+
+
+${barisjudul} *FINANCE MENU* \`(total ${financemenu} fitur)\`
+${tutupjudul}
+${barisfitur} ${prefix}comodityprice
+${barisfitur} ${prefix}konversi (mata uang)
+${barisfitur} ${prefix}konvert (konversi cent)
+${barisfitur} ${prefix}nilai-matauang (mata uang)
+${barisfitur} ${prefix}profitkalkulator
+${penutup}
+`
 			// Mengirimkan pesan
 		await naze.sendMessage(m.chat, {
 			text: responseMessage,
@@ -6075,8 +7397,10 @@ ${barisfitur} ${prefix}goblokcek
 ${barisfitur} ${prefix}imutcek 
 ${barisfitur} ${prefix}jelekcek 
 ${barisfitur} ${prefix}jomblocek 
+${barisfitur} ${prefix}kendaraancek 
 ${barisfitur} ${prefix}lesbicek 
 ${barisfitur} ${prefix}pintarcek 
+${barisfitur} ${prefix}rekeningcek 
 ${barisfitur} ${prefix}cekaku 
 ${barisfitur} ${prefix}cekbau 
 ${barisfitur} ${prefix}cekmati 
@@ -6243,6 +7567,77 @@ ${penutup}`
 		},{quoted: m});
 	}
 	break;
+	case 'konvertmenu':  {
+		let timestamp = speed();
+		let latensi = speed() - timestamp;
+		let neww = performance.now();
+		let oldd = performance.now();
+		const barisjudul = '╔═〇';
+		const tutupjudul = '╠═════════〇';
+		const barisfitur = '╠»';
+		const penutup    = '╚═════════════════〇';
+		// Format tampilan pesan
+		let responseMessage =
+`${barisjudul} *USER INFO* 
+${tutupjudul}
+${barisfitur} *Nama* : ${m.pushName ? m.pushName : 'Tanpa Nama'}
+${barisfitur} *Id*         : ${m.sender.split('@')[0]}
+${barisfitur} *User*   : ${isVip ? 'VIP' : isPremium ? 'PREMIUM' : 'FREE'}
+${penutup}
+
+${barisjudul} *BOT INFO* 
+${tutupjudul}
+${barisfitur} *Nama Bot*          : ${botname}
+${barisfitur} *Pengembang*   : BANGSULSTART
+${barisfitur} *Total Fitur*         : ${totalfitur}
+${barisfitur} *Mode*                  : ${naze.public ? 'Publik 🌍' : 'Self 🔒'}
+${barisfitur} *Pengguna*         : ${Object.keys(global.db.users).length}
+${penutup}
+
+
+${barisjudul} *KONVERT MENU* \`(total ${konvertmenu} fitur)\`
+${tutupjudul}
+${barisfitur} ${prefix}toaudio (reply video/audio)
+${barisfitur} ${prefix}togift (reply video)
+${barisfitur} ${prefix}toimage (reply sticker)
+${barisfitur} ${prefix}tomp3 (reply video/audio)
+${barisfitur} ${prefix}toptv (reply video/caption)
+${barisfitur} ${prefix}toqr (teks)
+${barisfitur} ${prefix}tourl (reply foto/caption)
+${barisfitur} ${prefix}tovn (reply video/audio)
+${barisfitur} ${prefix}tts (teks)
+${barisfitur} ${prefix}bass (reply audio) 
+${barisfitur} ${prefix}blown (reply audio) 
+${barisfitur} ${prefix}deep (reply audio) 
+${barisfitur} ${prefix}earrape (reply audio) 
+${barisfitur} ${prefix}fast (reply audio) 
+${barisfitur} ${prefix}fat (reply audio) 
+${barisfitur} ${prefix}nightcore (reply audio) 
+${barisfitur} ${prefix}reverse (reply audio) 
+${barisfitur} ${prefix}robot (reply audio) 
+${barisfitur} ${prefix}slow (reply audio) 
+${barisfitur} ${prefix}smooth (reply audio) 
+${barisfitur} ${prefix}tupai (reply audio) 
+${penutup}`
+			// Mengirimkan pesan
+		await naze.sendMessage(m.chat, {
+			text: responseMessage,
+			contextInfo: {
+				externalAdReply: {
+					title: 'BANGSULBOTZ🤖',
+					body: 'Bot Whatsapp',
+					showAdAttribution: true,
+					thumbnailUrl: my.thumb, // Menggunakan URL gambar sebagai thumbnail
+					mediaType: 1,
+					previewType: 0,
+					renderLargerThumbnail: true,
+					mediaUrl: my.gh, // URL GitHub yang dituju
+					sourceUrl: my.gh, // Sumber URL GitHub
+				}
+			}
+		},{quoted: m});
+	}
+	break;
 	case 'ownermenu':    {
 		let timestamp = speed();
 		let latensi = speed() - timestamp;
@@ -6369,6 +7764,7 @@ ${penutup}
 ${barisjudul} *SEARCH MENU* \`(total ${searchmenu} fitur)\`
 ${tutupjudul}
 ${barisfitur} ${prefix}bingimage (teks) 
+${barisfitur} ${prefix}cariinfo (teks) 
 ${barisfitur} ${prefix}gimage (teks) 
 ${barisfitur} ${prefix}githubstalk (teks) 
 ${barisfitur} ${prefix}lirik (judul lagu) 
@@ -6378,6 +7774,70 @@ ${barisfitur} ${prefix}ringtone (teks)
 ${barisfitur} ${prefix}spotify (teks) 
 ${barisfitur} ${prefix}spotifydl (teks) 
 ${barisfitur} ${prefix}wallpaper (teks) 
+${penutup}`
+			// Mengirimkan pesan
+		await naze.sendMessage(m.chat, {
+			text: responseMessage,
+			contextInfo: {
+				externalAdReply: {
+					title: 'BANGSULBOTZ🤖',
+					body: 'Bot Whatsapp',
+					showAdAttribution: true,
+					thumbnailUrl: my.thumb, // Menggunakan URL gambar sebagai thumbnail
+					mediaType: 1,
+					previewType: 0,
+					renderLargerThumbnail: true,
+					mediaUrl: my.gh, // URL GitHub yang dituju
+					sourceUrl: my.gh, // Sumber URL GitHub
+				}
+			}
+		},{quoted: m});
+	}
+	break;
+	case 'stickermenu':  {
+		let timestamp = speed();
+		let latensi = speed() - timestamp;
+		let neww = performance.now();
+		let oldd = performance.now();
+		const barisjudul = '╔═〇';
+		const tutupjudul = '╠═════════〇';
+		const barisfitur = '╠»';
+		const penutup    = '╚═════════════════〇';
+		// Format tampilan pesan
+		let responseMessage =
+`${barisjudul} *USER INFO* 
+${tutupjudul}
+${barisfitur} *Nama* : ${m.pushName ? m.pushName : 'Tanpa Nama'}
+${barisfitur} *Id*         : ${m.sender.split('@')[0]}
+${barisfitur} *User*   : ${isVip ? 'VIP' : isPremium ? 'PREMIUM' : 'FREE'}
+${penutup}
+
+${barisjudul} *BOT INFO* 
+${tutupjudul}
+${barisfitur} *Nama Bot*          : ${botname}
+${barisfitur} *Pengembang*   : BANGSULSTART
+${barisfitur} *Total Fitur*         : ${totalfitur}
+${barisfitur} *Mode*                  : ${naze.public ? 'Publik 🌍' : 'Self 🔒'}
+${barisfitur} *Pengguna*         : ${Object.keys(global.db.users).length}
+${penutup}
+
+
+${barisjudul} *STICKER MENU* \`(total ${stickermenu} fitur)\`
+${tutupjudul}
+${barisfitur} ${prefix}brat (teks) 
+${barisfitur} ${prefix}brat2 (versi HD)
+${barisfitur} ${prefix}bratvid (teks)
+${barisfitur} ${prefix}bratvid2 (versi HD)
+${barisfitur} ${prefix}carbonify (teks)
+${barisfitur} ${prefix}emojimix (😁+😌)
+${barisfitur} ${prefix}qc (teks/reply pesan)
+${barisfitur} ${prefix}smeme (teks|teks)
+${barisfitur} ${prefix}ssweb (url)
+${barisfitur} ${prefix}stele (nama pack/URL sticker telegram)
+${barisfitur} ${prefix}sticker (reply foto/caption)
+${barisfitur} ${prefix}stickercrop (reply foto/caption)
+${barisfitur} ${prefix}stickerwm (nama)
+${barisfitur} ${prefix}stickerly (url stickerly)
 ${penutup}`
 			// Mengirimkan pesan
 		await naze.sendMessage(m.chat, {
@@ -6427,56 +7887,22 @@ ${penutup}
 
 ${barisjudul} *TOOLS MENU* \`(total ${toolsmenu} fitur)\`
 ${tutupjudul}
-${barisfitur} ${prefix}brat (teks)
-${barisfitur} ${prefix}brat2 (versi HD)
-${barisfitur} ${prefix}bratvid (teks)
-${barisfitur} ${prefix}bratvid2 (versi HD)
-${barisfitur} ${prefix}carbonify (teks)
-${barisfitur} ${prefix}cuaca (nama kota)
-${barisfitur} ${prefix}emojimix (😁+😌)
+${barisfitur} ${prefix}base64toteks (teks)
 ${barisfitur} ${prefix}get
 ${barisfitur} ${prefix}getexif
 ${barisfitur} ${prefix}gitclone (url github)
 ${barisfitur} ${prefix}hd (reply foto)
+${barisfitur} ${prefix}iplookup (IP)
+${barisfitur} ${prefix}ip-location (IP)
 ${barisfitur} ${prefix}kelompokacak (jumlah orang)
-${barisfitur} ${prefix}konversi (mata uang)
-${barisfitur} ${prefix}konvert (konversi cent)
-${barisfitur} ${prefix}profitkalkulator
-${barisfitur} ${prefix}qc (teks/reply pesan)
 ${barisfitur} ${prefix}readmore (teks1|teks2)
 ${barisfitur} ${prefix}shorturl (url)
 ${barisfitur} ${prefix}statistikdata (masukkan angka)
-${barisfitur} ${prefix}smeme (teks|teks)
-${barisfitur} ${prefix}ssweb (url)
-${barisfitur} ${prefix}stele (nama pack/URL sticker telegram)
-${barisfitur} ${prefix}stele1 (versi cadangan)
-${barisfitur} ${prefix}sticker (reply foto/caption)
-${barisfitur} ${prefix}stickercrop (reply foto/caption)
-${barisfitur} ${prefix}stickerwm (nama)
-${barisfitur} ${prefix}stickerly (url stickerly)
 ${barisfitur} ${prefix}style (teks)
-${barisfitur} ${prefix}toaudio (reply video/audio)
-${barisfitur} ${prefix}togift (reply video)
-${barisfitur} ${prefix}toimage (reply sticker)
-${barisfitur} ${prefix}tomp3 (reply video/audio)
-${barisfitur} ${prefix}toptv (reply video/caption)
-${barisfitur} ${prefix}toqr (teks)
-${barisfitur} ${prefix}tourl (reply foto/caption)
-${barisfitur} ${prefix}tovn (reply video/audio)
+${barisfitur} ${prefix}tekstobase64 (teks)
 ${barisfitur} ${prefix}translate
-${barisfitur} ${prefix}tts (teks)
-${barisfitur} ${prefix}bass (reply audio) 
-${barisfitur} ${prefix}blown (reply audio) 
-${barisfitur} ${prefix}deep (reply audio) 
-${barisfitur} ${prefix}earrape (reply audio) 
-${barisfitur} ${prefix}fast (reply audio) 
-${barisfitur} ${prefix}fat (reply audio) 
-${barisfitur} ${prefix}nightcore (reply audio) 
-${barisfitur} ${prefix}reverse (reply audio) 
-${barisfitur} ${prefix}robot (reply audio) 
-${barisfitur} ${prefix}slow (reply audio) 
-${barisfitur} ${prefix}smooth (reply audio) 
-${barisfitur} ${prefix}tupai (reply audio) 
+${barisfitur} ${prefix}url-lookup (url)
+${barisfitur} ${prefix}validasiphone (nomor HP)
 ${penutup}`
 			// Mengirimkan pesan
 		await naze.sendMessage(m.chat, {
@@ -6629,6 +8055,7 @@ ${barisfitur} ${prefix}read (reply media 1x lihat)
 ${barisfitur} ${prefix}tagme 
 ${barisfitur} ${prefix}runtime 
 ${barisfitur} ${prefix}speedtest 
+${barisfitur} ${prefix}static
 ${barisfitur} ${prefix}totalfitur 
 ${barisfitur} ${prefix}totaluser 
 ${barisfitur} ${prefix}request (teks) 
@@ -6640,13 +8067,26 @@ ${penutup}
 
 ${barisjudul} *DOWNLOAD MENU* \`(total ${downloadmenu} fitur)\`
 ${tutupjudul}
+${barisfitur} ${prefix}capcut (url capcut) 
+${barisfitur} ${prefix}facebookdl (url facebook) 
 ${barisfitur} ${prefix}gdrive (url google drive) 
 ${barisfitur} ${prefix}ig (url instagram) 
 ${barisfitur} ${prefix}mediafire (url mediafire) 
 ${barisfitur} ${prefix}tt (url tiktok) 
+${barisfitur} ${prefix}twitterdl (url twitter) 
 ${barisfitur} ${prefix}ttaudio (url tiktok) 
 ${barisfitur} ${prefix}ytmp3 (url youtube) 
 ${barisfitur} ${prefix}ytmp4 (url youtube) 
+${penutup}
+
+
+${barisjudul} *FINANCE MENU* \`(total ${financemenu} fitur)\`
+${tutupjudul}
+${barisfitur} ${prefix}comodityprice
+${barisfitur} ${prefix}konversi (mata uang)
+${barisfitur} ${prefix}konvert (konversi cent)
+${barisfitur} ${prefix}nilai-matauang (mata uang)
+${barisfitur} ${prefix}profitkalkulator
 ${penutup}
 
 
@@ -6661,8 +8101,10 @@ ${barisfitur} ${prefix}goblokcek
 ${barisfitur} ${prefix}imutcek 
 ${barisfitur} ${prefix}jelekcek 
 ${barisfitur} ${prefix}jomblocek 
+${barisfitur} ${prefix}kendaraancek 
 ${barisfitur} ${prefix}lesbicek 
 ${barisfitur} ${prefix}pintarcek 
+${barisfitur} ${prefix}rekeningcek 
 ${barisfitur} ${prefix}cekaku 
 ${barisfitur} ${prefix}cekbau 
 ${barisfitur} ${prefix}cekmati 
@@ -6721,6 +8163,32 @@ ${barisfitur} ${prefix}tagall
 ${barisfitur} ${prefix}totag 
 ${barisfitur} ${prefix}welcome 
 ${barisfitur} ${prefix}wargagrup
+${penutup}
+
+
+${barisjudul} *KONVERT MENU* \`(total ${konvertmenu} fitur)\`
+${tutupjudul}
+${barisfitur} ${prefix}toaudio (reply video/audio)
+${barisfitur} ${prefix}togift (reply video)
+${barisfitur} ${prefix}toimage (reply sticker)
+${barisfitur} ${prefix}tomp3 (reply video/audio)
+${barisfitur} ${prefix}toptv (reply video/caption)
+${barisfitur} ${prefix}toqr (teks)
+${barisfitur} ${prefix}tourl (reply foto/caption)
+${barisfitur} ${prefix}tovn (reply video/audio)
+${barisfitur} ${prefix}tts (teks)
+${barisfitur} ${prefix}bass (reply audio) 
+${barisfitur} ${prefix}blown (reply audio) 
+${barisfitur} ${prefix}deep (reply audio) 
+${barisfitur} ${prefix}earrape (reply audio) 
+${barisfitur} ${prefix}fast (reply audio) 
+${barisfitur} ${prefix}fat (reply audio) 
+${barisfitur} ${prefix}nightcore (reply audio) 
+${barisfitur} ${prefix}reverse (reply audio) 
+${barisfitur} ${prefix}robot (reply audio) 
+${barisfitur} ${prefix}slow (reply audio) 
+${barisfitur} ${prefix}smooth (reply audio) 
+${barisfitur} ${prefix}tupai (reply audio) 
 ${penutup}
 
 
@@ -6792,69 +8260,63 @@ ${penutup}
 ${barisjudul} *SEARCH MENU* \`(total ${searchmenu} fitur)\`
 ${tutupjudul}
 ${barisfitur} ${prefix}bingimage (teks) 
+${barisfitur} ${prefix}bukalapak (teks) 
+${barisfitur} ${prefix}cariinfo (teks) 
+${barisfitur} ${prefix}cekhewan (teks) 
+${barisfitur} ${prefix}cuaca (nama kota)
 ${barisfitur} ${prefix}gimage (teks) 
 ${barisfitur} ${prefix}githubstalk (teks) 
+${barisfitur} ${prefix}gsmarena (name device) 
+${barisfitur} ${prefix}kodepos (daerah) 
 ${barisfitur} ${prefix}lirik (judul lagu) 
+${barisfitur} ${prefix}infonegara (negara) 
 ${barisfitur} ${prefix}pinterest (teks) 
 ${barisfitur} ${prefix}play (teks search youtube) 
 ${barisfitur} ${prefix}ringtone (teks) 
 ${barisfitur} ${prefix}spotify (teks) 
 ${barisfitur} ${prefix}spotifydl (teks) 
+${barisfitur} ${prefix}ttstalk (username tiktok) 
 ${barisfitur} ${prefix}wallpaper (teks) 
 ${penutup}
 
-${barisjudul} *TOOLS MENU* \`(total ${toolsmenu} fitur)\`
+
+${barisjudul} *STICKER MENU* \`(total ${stickermenu} fitur)\`
 ${tutupjudul}
-${barisfitur} ${prefix}brat (teks)
+${barisfitur} ${prefix}brat (teks) 
 ${barisfitur} ${prefix}brat2 (versi HD)
 ${barisfitur} ${prefix}bratvid (teks)
 ${barisfitur} ${prefix}bratvid2 (versi HD)
 ${barisfitur} ${prefix}carbonify (teks)
-${barisfitur} ${prefix}cuaca (nama kota)
 ${barisfitur} ${prefix}emojimix (😁+😌)
-${barisfitur} ${prefix}get
-${barisfitur} ${prefix}getexif
-${barisfitur} ${prefix}gitclone (url github)
-${barisfitur} ${prefix}hd (reply foto)
-${barisfitur} ${prefix}kelompokacak (jumlah orang)
-${barisfitur} ${prefix}konversi (mata uang)
-${barisfitur} ${prefix}konvert (konversi cent)
-${barisfitur} ${prefix}profitkalkulator
 ${barisfitur} ${prefix}qc (teks/reply pesan)
-${barisfitur} ${prefix}readmore (teks1|teks2)
-${barisfitur} ${prefix}shorturl (url)
-${barisfitur} ${prefix}statistikdata (masukkan angka)
 ${barisfitur} ${prefix}smeme (teks|teks)
 ${barisfitur} ${prefix}ssweb (url)
 ${barisfitur} ${prefix}stele (nama pack/URL sticker telegram)
-${barisfitur} ${prefix}stele1 (versi cadangan)
 ${barisfitur} ${prefix}sticker (reply foto/caption)
 ${barisfitur} ${prefix}stickercrop (reply foto/caption)
 ${barisfitur} ${prefix}stickerwm (nama)
 ${barisfitur} ${prefix}stickerly (url stickerly)
+${penutup}
+
+
+${barisjudul} *TOOLS MENU* \`(total ${toolsmenu} fitur)\`
+${tutupjudul}
+${barisfitur} ${prefix}base64toteks (teks)
+${barisfitur} ${prefix}get
+${barisfitur} ${prefix}getexif
+${barisfitur} ${prefix}gitclone (url github)
+${barisfitur} ${prefix}hd (reply foto)
+${barisfitur} ${prefix}iplookup (IP)
+${barisfitur} ${prefix}ip-location (IP)
+${barisfitur} ${prefix}kelompokacak (jumlah orang)
+${barisfitur} ${prefix}readmore (teks1|teks2)
+${barisfitur} ${prefix}shorturl (url)
+${barisfitur} ${prefix}statistikdata (masukkan angka)
 ${barisfitur} ${prefix}style (teks)
-${barisfitur} ${prefix}toaudio (reply video/audio)
-${barisfitur} ${prefix}togift (reply video)
-${barisfitur} ${prefix}toimage (reply sticker)
-${barisfitur} ${prefix}tomp3 (reply video/audio)
-${barisfitur} ${prefix}toptv (reply video/caption)
-${barisfitur} ${prefix}toqr (teks)
-${barisfitur} ${prefix}tourl (reply foto/caption)
-${barisfitur} ${prefix}tovn (reply video/audio)
+${barisfitur} ${prefix}tekstobase64 (teks)
 ${barisfitur} ${prefix}translate
-${barisfitur} ${prefix}tts (teks)
-${barisfitur} ${prefix}bass (reply audio) 
-${barisfitur} ${prefix}blown (reply audio) 
-${barisfitur} ${prefix}deep (reply audio) 
-${barisfitur} ${prefix}earrape (reply audio) 
-${barisfitur} ${prefix}fast (reply audio) 
-${barisfitur} ${prefix}fat (reply audio) 
-${barisfitur} ${prefix}nightcore (reply audio) 
-${barisfitur} ${prefix}reverse (reply audio) 
-${barisfitur} ${prefix}robot (reply audio) 
-${barisfitur} ${prefix}slow (reply audio) 
-${barisfitur} ${prefix}smooth (reply audio) 
-${barisfitur} ${prefix}tupai (reply audio) 
+${barisfitur} ${prefix}url-lookup (url)
+${barisfitur} ${prefix}validasiphone (nomor HP)
 ${penutup}`
 
 	// Mengirimkan pesan
