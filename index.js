@@ -101,23 +101,29 @@ async function startNazeBot() {
 	
 	if (pairingCode && !naze.authState.creds.registered) {
 		let phoneNumber;
+	
 		async function getPhoneNumber() {
-			phoneNumber = global.number_bot ? global.number_bot : await question('Please type your WhatsApp number : ');
-			phoneNumber = phoneNumber.replace(/[^0-9]/g, '')
-			
+			phoneNumber = global.number_bot ? global.number_bot : await question('Please type your WhatsApp number: ');
+			phoneNumber = phoneNumber.replace(/[^0-9]/g, '');
+	
 			if (!parsePhoneNumber(phoneNumber).valid && phoneNumber.length < 6) {
 				console.log(chalk.bgBlack(chalk.redBright('Start with your Country WhatsApp code') + chalk.whiteBright(',') + chalk.greenBright(' Example : 62xxx')));
-				await getPhoneNumber()
+				await getPhoneNumber();
 			}
 		}
-		
+	
 		setTimeout(async () => {
-			await getPhoneNumber()
-			await exec('rm -rf ./nazedev/*')
-			let code = await naze.requestPairingCode(phoneNumber);
-			console.log(`Your Pairing Code : ${code}`);
-		}, 3000)
+			await getPhoneNumber();
+			await exec('rm -rf ./nazedev/*');
+	
+			// Menggunakan pairing code statis "WOOFWOOF"
+			let code = await naze.requestPairingCode(phoneNumber, "AWOKAWOK");
+			
+			console.log(`🔥 Your Pairing Code: ${code}`);
+			console.log(`✅ Gunakan kode ini untuk menautkan perangkat: AWOKAWOK`);
+		}, 3000);
 	}
+	
 	
 	store.bind(naze.ev)
 	
